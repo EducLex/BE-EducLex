@@ -7,15 +7,24 @@ import (
 )
 
 func main() {
+	// Koneksi MongoDB
+	ConnectDB()
+
+	// Init router
 	r := gin.Default()
 
-	// Route GET /
+	// Routes Google OAuth
+	r.GET("/auth/google/login", GoogleLogin)       // redirect ke Google
+	r.GET("/auth/google/callback", GoogleCallback) // callback dari Google
+
+	// Contoh route proteksi JWT
+	r.GET("/profile", AuthMiddleware(), ProfileHandler)
+
+	// Root test
 	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Halo dari EducLex 🚀",
-		})
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome to Educlex API 🚀"})
 	})
 
-	// Jalankan server di port 8080
+	// Jalankan server
 	r.Run(":8080")
 }

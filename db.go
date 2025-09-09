@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var userCollection *mongo.Collection // <-- global, dikenali di semua file
+var userCollection *mongo.Collection // <- global, bisa diakses auth.go
 
 func ConnectDB() {
 	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))

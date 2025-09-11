@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -25,11 +26,13 @@ type GoogleUser struct {
 }
 
 func GoogleLoginRedirect(c *gin.Context) {
+	log.Println("GoogleLoginRedirect called")
 	url := config.GoogleOauthConfig.AuthCodeURL(uuid.NewString())
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 func GoogleCallback(c *gin.Context) {
+	log.Println("GoogleCallback called")
 	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})

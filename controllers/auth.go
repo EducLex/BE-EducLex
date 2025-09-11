@@ -6,15 +6,13 @@ import (
 	"time"
 
 	"github.com/EducLex/BE-EducLex/config"
+	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/EducLex/BE-EducLex/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var jwtSecret = []byte("SECRET_KEY_KAMU")
 
 // --- REGISTER MANUAL ---
 func Register(c *gin.Context) {
@@ -94,17 +92,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// Buat JWT
-	claims := jwt.MapClaims{
-		"email": user.Email,
-		"name":  user.Username,
-		"exp":   time.Now().Add(24 * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	jwtString, _ := token.SignedString(jwtSecret)
+	// Generate JWT
+	jwtString, _ := middleware.GenerateJWT(user.Email, "user")
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": jwtString,
-		"user":  user.Email,
+		"user": gin.H{
+			"email":    user.Email,
+			"username": user.Username,
+		},
 	})
 }

@@ -3,18 +3,27 @@ package routes
 import (
 	"github.com/EducLex/BE-EducLex/controllers"
 	"github.com/EducLex/BE-EducLex/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine) {
-	// Manual auth
-	r.POST("/register", controllers.Register)
-	r.POST("/login", controllers.Login)
+func SetupRouter() *gin.Engine {
+	r := gin.Default()
 
-	// Google auth
+	// --- Auth Manual ---
+	r.POST("/auth/register", controllers.Register)
+	r.POST("/auth/login", controllers.Login)
+
+	// --- Google OAuth ---
 	r.GET("/auth/google/login", controllers.GoogleLogin)
 	r.GET("/auth/google/callback", controllers.GoogleCallback)
 
-	// Protected route
-	r.GET("/profile", middleware.AuthMiddleware(), controllers.ProfileHandler)
+	// --- Protected Routes ---
+	protected := r.Group("/api")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.GET("/profile", controllers.ProfileHandler)
+	}
+
+	return r
 }

@@ -8,98 +8,87 @@ import (
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/EducLex/BE-EducLex/models"
-
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// --- REGISTER MANUAL ---
+// Register manual
 func Register(c *gin.Context) {
-	var req struct {
-		Email           string `json:"email"`
-		Username        string `json:"username"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirm_password"`
+	var input struct {
+		Username        string `json:"username" binding:"required"`
+		Email           string `json:"email" binding:"required,email"`
+		Password        string `json:"password" binding:"required,min=6"`
+		ConfirmPassword string `json:"confirm_password" binding:"required,eqfield=Password"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if req.Password != req.ConfirmPassword {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Passwords do not match"})
-		return
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// cek apakah email sudah ada
-	var existing models.User
-	err := config.UserCollection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existing)
-	if err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already registered"})
-		return
-	}
-
-	// hash password
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-
-	newUser := models.User{
-		Email:     req.Email,
-		Username:  req.Username,
-		Password:  string(hashed),
-		Provider:  "manual",
-		CreatedAt: time.Now(),
-	}
-	_, err = config.UserCollection.InsertOne(context.Background(), newUser)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
-}
-
-// --- LOGIN MANUAL ---
-func Login(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	var user models.User
-	err := config.UserCollection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Kalau user dari Google → tolak login manual
-	if user.Provider == "google" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "This account uses Google login"})
-		return
-	}
-
-	// Cek password manual
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
-		return
-	}
-
-	// Generate JWT
-	jwtString, _ := middleware.GenerateJWT(user.Email, "user")
-
-	c.JSON(http.StatusOK, gin.H{
-		"token": jwtString,
-		"user": gin.H{
-			"email":    user.Email,
-			"username": user.Username,
+	// cek email/username sudah ada
+	count, _ := config.UserCollection.CountDocuments(ctx, bson.M{
+		"$or": []bson.M{
+			{"email": input.Email},
+			{"username": input.Username},
 		},
 	})
+	if count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username or Email already exists"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+
+	user := models.User{
+		ID:       primitive.NewObjectID(),
+		Username: input.Username,
+		Email:    input.Email,
+		Password: string(hashedPassword),
+	}
+
+	_, err := config.UserCollection.InsertOne(ctx, user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
+	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+	c.JSON(http.StatusOK, gin.H{"message": "register success", "token": token})
+}
+
+// Login manual
+func Login(c *gin.Context) {
+	var input struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user models.User
+	err := config.UserCollection.FindOne(ctx, bson.M{"username": input.Username}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		return
+	}
+
+	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+	c.JSON(http.StatusOK, gin.H{"message": "login success", "token": token})
 }

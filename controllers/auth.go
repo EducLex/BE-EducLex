@@ -81,15 +81,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// cek password
-	if user.Provider == "manual" {
-		if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
-			return
-		}
+	// Kalau user dari Google → tolak login manual
+	if user.Provider == "google" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "This account uses Google login"})
+		return
 	}
 
-	// buat JWT
+	// Cek password manual
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+		return
+	}
+
+	// Buat JWT
 	claims := jwt.MapClaims{
 		"email": user.Email,
 		"name":  user.Username,
@@ -98,5 +103,8 @@ func Login(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtString, _ := token.SignedString(jwtSecret)
 
-	c.JSON(http.StatusOK, gin.H{"token": jwtString})
+	c.JSON(http.StatusOK, gin.H{
+		"token": jwtString,
+		"user":  user.Email,
+	})
 }

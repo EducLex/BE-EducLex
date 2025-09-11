@@ -1,18 +1,21 @@
 package routes
 
 import (
-	"github.com/EducLex/BE-EducLex/controllers"
 	"github.com/gin-gonic/gin"
+
+	"github.com/EducLex/BE-EducLex/controllers"
+	"github.com/EducLex/BE-EducLex/middleware"
 )
 
 func SetupRoutes(r *gin.Engine) {
-	// Auth routes
-	r.GET("/auth/google/login", controllers.Login)
+	// -------- AUTH MANUAL --------
+	r.POST("/register", controllers.Register)
+	r.POST("/login", controllers.Login)
+
+	// -------- AUTH GOOGLE --------
+	r.GET("/auth/google/login", controllers.GoogleLogin)
 	r.GET("/auth/google/callback", controllers.GoogleCallback)
 
-	// Contoh proteksi route pakai middleware JWT nanti bisa ditambah
-	r.GET("/profile", controllers.ProfileHandler)
-
-	// Register user
-	r.POST("/register", controllers.Register)
+	// -------- PROTECTED --------
+	r.GET("/profile", middleware.AuthMiddleware(), controllers.ProfileHandler)
 }

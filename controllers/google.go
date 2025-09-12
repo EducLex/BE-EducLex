@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io" // ganti ioutil
 	"net/http"
 	"os"
 	"time"
@@ -12,9 +12,10 @@ import (
 	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/EducLex/BE-EducLex/models"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/oauth2"
 )
 
 type GoogleUser struct {
@@ -23,31 +24,31 @@ type GoogleUser struct {
 	Name  string `json:"name"`
 }
 
-func GoogleLoginRedirect(c *gin.Context) {
-	url := config.GoogleOauthConfig.AuthCodeURL(uuid.NewString())
+func GoogleLogin(c *gin.Context) {
+	url := config.GoogleOauthConfig.AuthCodeURL(
+		"state-token",
+		oauth2.AccessTypeOffline, // biar dapat refresh token
+		oauth2.ApprovalForce,     // paksa Google kasih refresh token
+	)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 func GoogleCallback(c *gin.Context) {
-	// ambil "code" dari Google callback
 	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
 		return
 	}
 
-	// tukar code dengan access token
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	token, err := config.GoogleOauthConfig.Exchange(ctx, code)
+	// Tukar code dari Google dengan access token
+	token, err := config.GoogleOauthConfig.Exchange(c, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
 		return
 	}
 
-	// pakai token untuk ambil user info dari Google
-	client := config.GoogleOauthConfig.Client(ctx, token)
+	// Pakai access token untuk ambil data user Google
+	client := config.GoogleOauthConfig.Client(c, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
@@ -55,19 +56,23 @@ func GoogleCallback(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	data, _ := ioutil.ReadAll(resp.Body)
+	data, _ := io.ReadAll(resp.Body)
+
 	var gUser GoogleUser
 	if err := json.Unmarshal(data, &gUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
 		return
 	}
 
-	// cek apakah user sudah ada di DB
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Cari user berdasarkan google_id
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
 
-	// kalau user belum ada → buat baru
-	if err != nil {
+	// Jika user belum ada, buat baru
+	if err == mongo.ErrNoDocuments {
 		user = models.User{
 			ID:       primitive.NewObjectID(),
 			Username: gUser.Name,
@@ -79,16 +84,15 @@ func GoogleCallback(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 			return
 		}
-	}
-
-	// buat JWT internal
-	jwtToken, err := middleware.GenerateJWT(user.ID.Hex(), user.Username)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
 
-	// update user di DB dengan token
+	// Buat JWT untuk aplikasi
+	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+
+	// Update token di database
 	_, err = config.UserCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": user.ID},
@@ -99,7 +103,7 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// redirect ke frontend sambil bawa token
+	// Redirect ke frontend dengan JWT
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

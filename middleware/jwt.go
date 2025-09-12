@@ -1,21 +1,21 @@
 package middleware
 
 import (
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var jwtKey = []byte("superSecretKey123")
 
 func GenerateJWT(userID string, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
-		"exp":      time.Now().Add(time.Hour * 72).Unix(),
+		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
 }

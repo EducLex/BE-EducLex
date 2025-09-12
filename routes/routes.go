@@ -15,7 +15,7 @@ func SetupRouter() *gin.Engine {
 	// Google Auth
 	r.GET("/auth/google/login", controllers.GoogleLogin)       // redirect ke Google
 	r.GET("/auth/google/callback", controllers.GoogleCallback) // login pakai Google
-	r.GET("/auth/google/register", controllers.RegisterGoogle) // register pakai Google
+	r.GET("/auth/google/register", controllers.GoogleRegister) // register pakai Google
 
 	return r
 }

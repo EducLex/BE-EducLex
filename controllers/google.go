@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -37,14 +36,13 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// Tukar code dari Google dengan access token
-	token, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
+	token, err := config.GoogleOauthConfig.Exchange(c, code)
 	if err != nil {
-		log.Println("Error exchanging token:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
 		return
 	}
 
-	client := config.GoogleOauthConfig.Client(context.Background(), token)
+	client := config.GoogleOauthConfig.Client(c, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
@@ -52,9 +50,17 @@ func GoogleCallback(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	data, _ := ioutil.ReadAll(resp.Body)
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read user info"})
+		return
+	}
+
 	var gUser GoogleUser
-	json.Unmarshal(data, &gUser)
+	if err := json.Unmarshal(data, &gUser); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -62,7 +68,7 @@ func GoogleCallback(c *gin.Context) {
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
 
-	// Jika user belum ada, buat user baru
+	// Jika user belum ada → buat user baru
 	if err != nil {
 		user = models.User{
 			ID:       primitive.NewObjectID(),
@@ -70,6 +76,7 @@ func GoogleCallback(c *gin.Context) {
 			Email:    gUser.Email,
 			GoogleID: gUser.ID,
 		}
+
 		_, err = config.UserCollection.InsertOne(ctx, user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
@@ -78,7 +85,11 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// Buat JWT internal untuk aplikasi
-	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+	jwtToken, err := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
+		return
+	}
 
 	// Simpan token ke DB
 	_, err = config.UserCollection.UpdateOne(
@@ -93,9 +104,5 @@ func GoogleCallback(c *gin.Context) {
 
 	// Redirect ke frontend dengan membawa token
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
-	if redirectURL == "/google-success?token="+jwtToken { // kalau FRONTEND_URL kosong
-		c.JSON(http.StatusOK, gin.H{"token": jwtToken})
-		return
-	}
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

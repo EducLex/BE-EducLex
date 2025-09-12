@@ -29,20 +29,25 @@ func GoogleLoginRedirect(c *gin.Context) {
 }
 
 func GoogleCallback(c *gin.Context) {
+	// ambil "code" dari Google callback
 	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
 		return
 	}
 
-	// Tukar code dari Google dengan access token
-	token, err := config.GoogleOauthConfig.Exchange(c, code)
+	// tukar code dengan access token
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	token, err := config.GoogleOauthConfig.Exchange(ctx, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
 		return
 	}
 
-	client := config.GoogleOauthConfig.Client(c, token)
+	// pakai token untuk ambil user info dari Google
+	client := config.GoogleOauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
@@ -50,25 +55,18 @@ func GoogleCallback(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read user info"})
-		return
-	}
-
+	data, _ := ioutil.ReadAll(resp.Body)
 	var gUser GoogleUser
 	if err := json.Unmarshal(data, &gUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+	// cek apakah user sudah ada di DB
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
 
-	// Jika user belum ada → buat user baru
+	// kalau user belum ada → buat baru
 	if err != nil {
 		user = models.User{
 			ID:       primitive.NewObjectID(),
@@ -76,7 +74,6 @@ func GoogleCallback(c *gin.Context) {
 			Email:    gUser.Email,
 			GoogleID: gUser.ID,
 		}
-
 		_, err = config.UserCollection.InsertOne(ctx, user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
@@ -84,14 +81,14 @@ func GoogleCallback(c *gin.Context) {
 		}
 	}
 
-	// Buat JWT internal untuk aplikasi
+	// buat JWT internal
 	jwtToken, err := middleware.GenerateJWT(user.ID.Hex(), user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
 		return
 	}
 
-	// Simpan token ke DB
+	// update user di DB dengan token
 	_, err = config.UserCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": user.ID},
@@ -102,7 +99,7 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Redirect ke frontend dengan membawa token
+	// redirect ke frontend sambil bawa token
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

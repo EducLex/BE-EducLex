@@ -8,4 +8,5 @@ type User struct {
 	Email    string             `bson:"email" json:"email"`
 	Password string             `bson:"password,omitempty" json:"-"`
 	GoogleID string             `bson:"google_id,omitempty" json:"google_id,omitempty"`
+	Token    string             `bson:"token,omitempty" json:"token,omitempty"`
 }

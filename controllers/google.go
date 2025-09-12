@@ -35,6 +35,7 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
+	// Tukar code dari Google dengan access token
 	token, err := config.GoogleOauthConfig.Exchange(c, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
@@ -58,17 +59,37 @@ func GoogleCallback(c *gin.Context) {
 
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
-	if err != nil { // user belum ada → buat baru
+
+	// Jika user belum ada, buat user baru
+	if err != nil {
 		user = models.User{
 			ID:       primitive.NewObjectID(),
 			Username: gUser.Name,
 			Email:    gUser.Email,
 			GoogleID: gUser.ID,
 		}
-		config.UserCollection.InsertOne(ctx, user)
+		_, err = config.UserCollection.InsertOne(ctx, user)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			return
+		}
 	}
 
+	// Buat JWT internal untuk aplikasi
 	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+
+	// Simpan token ke DB (field token di user)
+	_, err = config.UserCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": user.ID},
+		bson.M{"$set": bson.M{"token": jwtToken}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save token"})
+		return
+	}
+
+	// Redirect ke frontend dengan membawa token
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

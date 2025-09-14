@@ -23,18 +23,19 @@ type GoogleUser struct {
 	Name  string `json:"name"`
 }
 
-// === Redirect ke Google ===
+// --- STEP 1: Redirect ke Google untuk Login
 func GoogleLogin(c *gin.Context) {
-	url := config.GoogleOauthConfig.AuthCodeURL("state-login", oauth2.AccessTypeOffline)
+	url := config.GoogleOauthConfig.AuthCodeURL("login", oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// --- STEP 1: Redirect ke Google untuk Register
 func GoogleRegister(c *gin.Context) {
-	url := config.GoogleOauthConfig.AuthCodeURL("state-register", oauth2.AccessTypeOffline)
+	url := config.GoogleOauthConfig.AuthCodeURL("register", oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-// === Callback ===
+// --- STEP 2: Callback setelah pilih akun Google
 func GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 	state := c.Query("state")
@@ -44,7 +45,7 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Tukar code → token
+	// Tukar code → access token
 	token, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
@@ -72,8 +73,8 @@ func GoogleCallback(c *gin.Context) {
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
 
-	// === MODE REGISTER ===
-	if state == "state-register" {
+	if state == "register" {
+		// Mode Register
 		if err == mongo.ErrNoDocuments {
 			user = models.User{
 				ID:       primitive.NewObjectID(),
@@ -90,18 +91,21 @@ func GoogleCallback(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "User already registered"})
 			return
 		}
-	} else {
-		// === MODE LOGIN ===
+	} else if state == "login" {
+		// Mode Login
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Account not registered"})
 			return
 		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state"})
+		return
 	}
 
-	// === Buat JWT ===
+	// --- STEP 3: Buat JWT
 	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
 
-	// Redirect ke frontend bawa token
+	// --- STEP 4: Redirect ke Frontend dengan token
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

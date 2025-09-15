@@ -14,33 +14,35 @@ import (
 
 // GetUser -> cek token & ambil data user dari database
 func GetUser(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
-		return
-	}
+    userID, exists := c.Get("user_id")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+        return
+    }
 
-	// convert ke ObjectID
-	oid, err := primitive.ObjectIDFromHex(userID.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-		return
-	}
+    uidStr := userID.(string)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+    oid, err := primitive.ObjectIDFromHex(uidStr)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+        return
+    }
 
-	var user models.User
-	err = config.UserCollection.FindOne(ctx, bson.M{"_id": oid}).Decode(&user)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":  user.ID.Hex(),
-		"username": user.Username,
-		"email":    user.Email,
-		"googleID": user.GoogleID,
-	})
+    var user models.User
+    err = config.UserCollection.FindOne(ctx, bson.M{"_id": oid}).Decode(&user)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "user_id":  user.ID.Hex(),
+        "username": user.Username,
+        "email":    user.Email,
+        "googleID": user.GoogleID,
+    })
 }
+

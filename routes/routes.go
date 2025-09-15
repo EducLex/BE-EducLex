@@ -11,13 +11,13 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-    AllowOrigins:     []string{"http://localhost:8080"}, // alamat FE yg benar
-    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-    ExposeHeaders:    []string{"Content-Length"},
-    AllowCredentials: true,
-    MaxAge: 12 * time.Hour,
-}))
+		AllowOrigins:     []string{"http://127.0.0.1:5500", "http://localhost:5500"}, // izinkan FE
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},        // OPTIONS penting buat preflight
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// auth group
 	auth := r.Group("/auth")
@@ -31,12 +31,11 @@ func SetupRouter() *gin.Engine {
 		auth.GET("/google/login", controllers.GoogleLogin)
 		auth.GET("/google/register", controllers.GoogleRegister)
 		auth.GET("/google/callback", controllers.GoogleCallback)
-
-		//qustion
-		r.POST("/questions", controllers.CreateQuestion)
-		r.GET("/questions", controllers.GetQuestions)
-
 	}
+
+	// question routes (dipisah dari auth biar rapi)
+	r.POST("/questions", controllers.CreateQuestion)
+	r.GET("/questions", controllers.GetQuestions)
 
 	return r
 }

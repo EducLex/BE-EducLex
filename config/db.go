@@ -10,7 +10,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var UserCollection *mongo.Collection
+var (
+	UserCollection     *mongo.Collection
+	QuestionCollection *mongo.Collection
+)
 
 func ConnectDB() {
 	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
@@ -25,6 +28,9 @@ func ConnectDB() {
 		log.Fatal(err)
 	}
 
-	UserCollection = client.Database("educlex").Collection("users")
+	db := client.Database("educlex")
+	UserCollection = db.Collection("users")
+	QuestionCollection = db.Collection("questions")
+
 	fmt.Println("✅ Connected to MongoDB")
 }

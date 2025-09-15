@@ -2,12 +2,23 @@ package routes
 
 import (
 	"github.com/EducLex/BE-EducLex/controllers"
-	"github.com/EducLex/BE-EducLex/middleware"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+
+	// Aktifkan CORS
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:8080"}, // alamat FE
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge: 12 * time.Hour,
+	}))
 
 	// auth group
 	auth := r.Group("/auth")
@@ -15,18 +26,17 @@ func SetupRouter() *gin.Engine {
 		// manual login/register
 		auth.POST("/register", controllers.Register)
 		auth.POST("/login", controllers.Login)
+		auth.POST("/register-admin", controllers.RegisterAdmin)
 
 		// google login/register
 		auth.GET("/google/login", controllers.GoogleLogin)
 		auth.GET("/google/register", controllers.GoogleRegister)
 		auth.GET("/google/callback", controllers.GoogleCallback)
-	}
 
-	// protected routes (butuh token JWT)
-	protected := r.Group("/auth")
-	protected.Use(middleware.AuthMiddleware()) // middleware dipasang disini
-	{
-		protected.GET("/user", controllers.GetUser)
+		//qustion
+		r.POST("/questions", controllers.CreateQuestion)
+		r.GET("/questions", controllers.GetQuestions)
+
 	}
 
 	return r

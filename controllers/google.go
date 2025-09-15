@@ -129,7 +129,7 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// generate JWT
-	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
+	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Google login success",
 		"token":   jwtToken,

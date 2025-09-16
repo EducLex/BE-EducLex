@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/EducLex/BE-EducLex/controllers"
+	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"time"
@@ -11,8 +12,8 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://127.0.0.1:5500"}, // izinkan FE
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},        // OPTIONS penting buat preflight
+		AllowOrigins:     []string{"http://127.0.0.1:5500"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},   
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -32,9 +33,14 @@ func SetupRouter() *gin.Engine {
 		auth.GET("/google/callback", controllers.GoogleCallback)
 	}
 
-	// question routes (dipisah dari auth biar rapi)
-	r.POST("/questions", controllers.CreateQuestion)
-	r.GET("/questions", controllers.GetQuestions)
+		auth.GET("/user", middleware.AuthMiddleware(), controllers.GetUser)
+
+		// hanya admin
+		auth.PUT("/update-role", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateRole)
+
+		// question routes (dipisah dari auth biar rapi)
+		r.POST("/questions", controllers.CreateQuestion)
+		r.GET("/questions", controllers.GetQuestions)
 
 	return r
 }

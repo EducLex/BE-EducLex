@@ -16,7 +16,6 @@ var (
 )
 
 func ConnectDB() {
-	// Ganti dengan connection string dari Atlas
 	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority&appName=EducLex"
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))

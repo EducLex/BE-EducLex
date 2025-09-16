@@ -17,7 +17,7 @@ func SetupRouter() *gin.Engine {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	}))        
 
 	// auth group
 	auth := r.Group("/auth")

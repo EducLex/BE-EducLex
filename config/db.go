@@ -16,10 +16,14 @@ var (
 )
 
 func ConnectDB() {
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	// Ganti dengan connection string dari Atlas
+	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority&appName=EducLex"
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -28,9 +32,8 @@ func ConnectDB() {
 		log.Fatal(err)
 	}
 
-	db := client.Database("educlex")
-	UserCollection = db.Collection("users")
-	QuestionCollection = db.Collection("questions")
+	fmt.Println("✅ Connected to MongoDB Atlas!")
 
-	fmt.Println("✅ Connected to MongoDB")
+	UserCollection = client.Database("EducLex").Collection("users")
+	QuestionCollection = client.Database("EducLex").Collection("questions")
 }

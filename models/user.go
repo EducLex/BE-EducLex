@@ -1,8 +1,9 @@
 package models
 
 import (
-		"go.mongodb.org/mongo-driver/bson/primitive"
-		"time"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type User struct {
@@ -11,7 +12,7 @@ type User struct {
 	Email    string             `bson:"email" json:"email"`
 	Password string             `bson:"password,omitempty" json:"-"`
 	GoogleID string             `bson:"google_id,omitempty" json:"google_id"`
-	Role     string             `bson:"role,omitempty" json:"role"` 
+	Role     string             `bson:"role,omitempty" json:"role"`
 	Token    string             `bson:"token,omitempty" json:"token"`
 }
 
@@ -22,4 +23,13 @@ type Question struct {
 	Pertanyaan string             `bson:"pertanyaan" json:"pertanyaan"`
 	Jawaban    string             `bson:"jawaban,omitempty" json:"jawaban,omitempty"`
 	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+}
+
+type Article struct {
+	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Title     string             `json:"title" bson:"title"`
+	Content   string             `json:"content" bson:"content"`
+	Image     string             `json:"image" bson:"image"`
+	File      string             `json:"file" bson:"file"`
+	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 }

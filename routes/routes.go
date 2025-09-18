@@ -47,6 +47,12 @@ func SetupRouter() *gin.Engine {
 	r.GET("/articles", controllers.GetArticles)
 	r.GET("/articles/:id", controllers.GetArticleByID)
 	r.POST("/articles", controllers.CreateArticle)
+	r.PUT("/articles/:id", controllers.UpdateArticle)   
+	r.DELETE("/articles/:id", controllers.DeleteArticle)
 
+	// Tulisan Jaksa
+	r.POST("/tulisan", controllers.CreateTulisan)
+	r.GET("/tulisan", controllers.GetTulisans)
+	
 	return r
 }

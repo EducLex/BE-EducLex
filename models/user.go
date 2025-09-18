@@ -33,3 +33,12 @@ type Article struct {
 	File      string             `json:"file" bson:"file"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 }
+
+type Tulisan struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Penulis  string             `bson:"penulis" json:"penulis"`
+	Kategori string             `bson:"kategori" json:"kategori"`
+	Judul    string             `bson:"judul" json:"judul"`
+	Isi      string             `bson:"isi" json:"isi"`
+	Created time.Time `json:"created" bson:"created"`
+}

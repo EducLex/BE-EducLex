@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	UserCollection     *mongo.Collection
-	QuestionCollection *mongo.Collection
-	ArticleCollection *mongo.Collection
-	TulisanCollection *mongo.Collection
+	UserCollection      *mongo.Collection
+	QuestionCollection  *mongo.Collection
+	ArticleCollection   *mongo.Collection
+	TulisanCollection   *mongo.Collection
+	PeraturanCollection *mongo.Collection
 )
 
 func ConnectDB() {
@@ -39,5 +40,6 @@ func ConnectDB() {
 	QuestionCollection = client.Database("EducLex").Collection("questions")
 	ArticleCollection = client.Database("articles").Collection("articles")
 	TulisanCollection = client.Database("EducLex").Collection("tulisan")
+	PeraturanCollection = client.Database("peraturan").Collection("peraturan")
 
 }

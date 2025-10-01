@@ -40,5 +40,12 @@ type Tulisan struct {
 	Kategori string             `bson:"kategori" json:"kategori"`
 	Judul    string             `bson:"judul" json:"judul"`
 	Isi      string             `bson:"isi" json:"isi"`
-	Created time.Time `json:"created" bson:"created"`
+	Created  time.Time          `json:"created" bson:"created"`
+}
+
+type Peraturan struct {
+	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Judul   string             `bson:"judul" json:"judul"`
+	Pasal   string             `bson:"pasal" json:"pasal"`
+	Created time.Time          `bson:"created" json:"created"`
 }

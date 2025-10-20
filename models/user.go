@@ -44,8 +44,13 @@ type Tulisan struct {
 }
 
 type Peraturan struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Judul   string             `bson:"judul" json:"judul"`
-	Pasal   string             `bson:"pasal" json:"pasal"`
-	Created time.Time          `bson:"created" json:"created"`
+    ID        string    `json:"id" bson:"_id,omitempty"`
+    Judul     string    `json:"judul" bson:"judul"`
+    Pasal     string    `json:"pasal" bson:"pasal"`
+    CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+}
+
+type TokenBlacklist struct {
+	Token     string    `bson:"token"`
+	ExpiredAt time.Time `bson:"expired_at"`
 }

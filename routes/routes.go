@@ -39,6 +39,15 @@ func SetupRouter() *gin.Engine {
 	// hanya admin
 	auth.PUT("/update-role", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateRole)
 
+	auth.GET("/profile", middleware.AuthMiddleware(), controllers.ProfileHandler)
+
+		// Dashboard Admin
+	r.GET("/dashboard", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetDashboardStats)
+
+	// Data Pengguna
+	r.GET("/users", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetAllUsers)
+
+
 	// question routes (dipisah dari auth biar rapi)
 	r.POST("/questions", controllers.CreateQuestion)
 	r.GET("/questions", controllers.GetQuestions)
@@ -56,9 +65,13 @@ func SetupRouter() *gin.Engine {
 
 	//Peraturan
 	r.POST("/peraturan", controllers.CreatePeraturan)
-	r.GET("/peraturan", controllers.GetPeraturans)
-	r.PUT("/peraturan/:id", controllers.UpdatePeraturan)
+	r.GET("/peraturan", controllers.GetPeraturan)
 	r.DELETE("/peraturan/:id", controllers.DeletePeraturan)
+
+	//logout
+	r.POST("/auth/logout", controllers.Logout)
+
+	
 
 	return r
 }

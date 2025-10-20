@@ -131,3 +131,33 @@ func RegisterAdmin(c *gin.Context) {
 	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
 	c.JSON(http.StatusOK, gin.H{"message": "admin register success", "token": token})
 }
+
+// Logout
+func Logout(c *gin.Context) {
+	tokenHeader := c.GetHeader("Authorization")
+	if tokenHeader == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization header tidak ditemukan"})
+		return
+	}
+
+	token := tokenHeader
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	blacklist := models.TokenBlacklist{
+		Token:     token,
+		ExpiredAt: time.Now().Add(24 * time.Hour), // token dianggap kadaluarsa 1 hari
+	}
+
+	_, err := config.TokenBlacklistCollection.InsertOne(ctx, blacklist)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan token ke blacklist"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logout berhasil"})
+}

@@ -1,15 +1,18 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/EducLex/BE-EducLex/config"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-var jwtKey = []byte("superSecretKey123") // ganti ke SECRET_KEY dari env biar aman
+var jwtKey = []byte("superSecretKey123") // ganti nanti dengan SECRET_KEY dari .env
 
 // GenerateJWT buat token JWT (dengan role)
 func GenerateJWT(userID string, username string, role string) (string, error) {
@@ -24,6 +27,7 @@ func GenerateJWT(userID string, username string, role string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
+// AuthMiddleware verifikasi JWT + cek blacklist
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -35,6 +39,14 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
+		// 🔒 Cek apakah token sudah di-blacklist
+		if IsTokenBlacklisted(tokenString) {
+			c.JSON(401, gin.H{"error": "Token sudah tidak berlaku (logout)"})
+			c.Abort()
+			return
+		}
+
+		// Parse JWT
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
@@ -55,15 +67,15 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// simpan ke context (paksa jadi string)
+		// simpan ke context
 		c.Set("user_id", fmt.Sprintf("%v", claims["user_id"]))
 		c.Set("username", fmt.Sprintf("%v", claims["username"]))
-        c.Set("role", fmt.Sprintf("%v", claims["role"]))
+		c.Set("role", fmt.Sprintf("%v", claims["role"]))
 		c.Next()
 	}
 }
 
-// AdminMiddleware khusus admin
+// AdminMiddleware -> hanya admin yang bisa akses
 func AdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, exists := c.Get("role")
@@ -74,4 +86,13 @@ func AdminMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+// 🔍 Fungsi bantu: cek apakah token ada di blacklist
+func IsTokenBlacklisted(token string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count, _ := config.TokenBlacklistCollection.CountDocuments(ctx, bson.M{"token": token})
+	return count > 0
 }

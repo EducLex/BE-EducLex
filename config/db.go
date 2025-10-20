@@ -16,6 +16,7 @@ var (
 	ArticleCollection   *mongo.Collection
 	TulisanCollection   *mongo.Collection
 	PeraturanCollection *mongo.Collection
+	TokenBlacklistCollection *mongo.Collection
 )
 
 func ConnectDB() {
@@ -40,6 +41,8 @@ func ConnectDB() {
 	QuestionCollection = client.Database("EducLex").Collection("questions")
 	ArticleCollection = client.Database("articles").Collection("articles")
 	TulisanCollection = client.Database("EducLex").Collection("tulisan")
-	PeraturanCollection = client.Database("peraturan").Collection("peraturan")
+	PeraturanCollection = client.Database("EducLex").Collection("peraturan")
+	TokenBlacklistCollection = client.Database("EducLex").Collection("token_blacklist")
+
 
 }

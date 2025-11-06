@@ -4,35 +4,32 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
-	UserCollection      *mongo.Collection
-	QuestionCollection  *mongo.Collection
-	ArticleCollection   *mongo.Collection
-	TulisanCollection   *mongo.Collection
-	PeraturanCollection *mongo.Collection
+	UserCollection           *mongo.Collection
+	QuestionCollection       *mongo.Collection
+	ArticleCollection        *mongo.Collection
+	TulisanCollection        *mongo.Collection
+	PeraturanCollection      *mongo.Collection
 	TokenBlacklistCollection *mongo.Collection
 )
 
 func ConnectDB() {
 	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority&appName=EducLex"
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
+	clientOptions := options.Client().ApplyURI(uri)
+	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("❌ Gagal konek ke MongoDB:", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	err = client.Connect(ctx)
+	err = client.Ping(context.Background(), nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("❌ MongoDB tidak bisa diakses:", err)
 	}
 
 	fmt.Println("✅ Connected to MongoDB Atlas!")
@@ -43,6 +40,4 @@ func ConnectDB() {
 	TulisanCollection = client.Database("EducLex").Collection("tulisan")
 	PeraturanCollection = client.Database("EducLex").Collection("peraturan")
 	TokenBlacklistCollection = client.Database("EducLex").Collection("token_blacklist")
-
-
 }

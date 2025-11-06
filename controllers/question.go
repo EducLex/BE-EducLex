@@ -8,60 +8,210 @@ import (
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Tambah pertanyaan
-func CreateQuestion(c *gin.Context) {
-	var input struct {
-		Nama       string `json:"nama"`
-		Email      string `json:"email"`
-		Pertanyaan string `json:"pertanyaan" binding:"required"`
-	}
+var questionCollection = config.QuestionCollection
 
+// ✅ POST: Tambah pertanyaan (user)
+func CreateQuestion(c *gin.Context) {
+	var input models.Question
+
+	// Ambil JSON dari body
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	question := models.Question{
-		ID:         primitive.NewObjectID(),
-		Nama:       input.Nama,
-		Email:      input.Email,
-		Pertanyaan: input.Pertanyaan,
-		Jawaban:    "Pertanyaanmu sedang diproses oleh Jaksa EducLex...",
-		CreatedAt:  time.Now(),
-	}
+	// Tambahkan tanggal dan status default
+	input.Tanggal = time.Now()
+	input.Status = "Belum Dijawab"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := config.QuestionCollection.InsertOne(ctx, question)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan pertanyaan"})
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Pertanyaan berhasil dikirim", "data": question})
+	// Insert ke MongoDB
+	result, err := collection.InsertOne(context.Background(), input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Ambil ID dari hasil insert
+	insertedID := result.InsertedID.(primitive.ObjectID)
+	input.ID = insertedID
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Pertanyaan berhasil ditambahkan",
+		"data":    input,
+	})
 }
 
-// Ambil semua pertanyaan
+// ✅ GET: Semua pertanyaan
 func GetQuestions(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
+		return
+	}
 
-	cursor, err := config.QuestionCollection.Find(ctx, primitive.M{})
+	cursor, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
 		return
 	}
-	defer cursor.Close(ctx)
+	defer cursor.Close(context.Background())
 
 	var questions []models.Question
-	if err := cursor.All(ctx, &questions); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal decode data"})
+	if err := cursor.All(context.Background(), &questions); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membaca data"})
 		return
 	}
 
 	c.JSON(http.StatusOK, questions)
+}
+
+// ✅ PUT: Update jawaban oleh Jaksa
+func UpdateQuestion(c *gin.Context) {
+	// Ambil koleksi dari config setiap kali fungsi dipanggil
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
+		return
+	}
+
+	// Ambil parameter ID
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
+		return
+	}
+
+	// Ambil data dari body JSON
+	var body struct {
+		Jawaban string `json:"jawaban"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid"})
+		return
+	}
+
+	// Update field jawaban & status
+	update := bson.M{
+		"$set": bson.M{
+			"jawaban": body.Jawaban,
+			"status":  "Sudah Dijawab",
+		},
+	}
+
+	result, err := collection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan jawaban"})
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pertanyaan tidak ditemukan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Jawaban berhasil disimpan"})
+}
+
+// ✅ DELETE: Hapus pertanyaan
+func DeleteQuestion(c *gin.Context) {
+	// Pastikan koneksi database aktif
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
+		return
+	}
+
+	// Ambil ID dari parameter URL
+	idParam := c.Param("id")
+	if len(idParam) != 24 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format ID tidak valid (harus 24 karakter hex)"})
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal mengonversi ID ke ObjectID: " + err.Error()})
+		return
+	}
+
+	// Hapus dokumen berdasarkan _id
+	result, err := collection.DeleteOne(context.Background(), bson.M{"_id": objID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus pertanyaan: " + err.Error()})
+		return
+	}
+
+	// Jika tidak ada data yang dihapus
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pertanyaan tidak ditemukan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Pertanyaan berhasil dihapus"})
+}
+
+// ✅ POST: Tambah diskusi lanjutan
+func TambahDiskusi(c *gin.Context) {
+	// Ambil koleksi dari config
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
+		return
+	}
+
+	// Ambil parameter ID dan validasi
+	idParam := c.Param("id")
+	if len(idParam) != 24 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format ID tidak valid"})
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal mengonversi ID ke ObjectID: " + err.Error()})
+		return
+	}
+
+	// Parsing JSON ke struct Diskusi
+	var diskusi models.Diskusi
+	if err := c.ShouldBindJSON(&diskusi); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid: " + err.Error()})
+		return
+	}
+
+	// Tambahkan tanggal saat ini
+	diskusi.Tanggal = time.Now()
+
+	// Siapkan update
+	update := bson.M{
+		"$push": bson.M{
+			"diskusi": diskusi,
+		},
+	}
+
+	// Jalankan update ke MongoDB
+	result, err := collection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan diskusi: " + err.Error()})
+		return
+	}
+
+	// Cek apakah dokumen ditemukan
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pertanyaan tidak ditemukan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Diskusi berhasil ditambahkan"})
 }

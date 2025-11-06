@@ -47,16 +47,19 @@ func SetupRouter() *gin.Engine {
 	// Data Pengguna
 	r.GET("/users", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetAllUsers)
 
-	// question routes (dipisah dari auth biar rapi)
-	r.POST("/questions", controllers.CreateQuestion)
+	// Pertanyaan dan Pengaduan
 	r.GET("/questions", controllers.GetQuestions)
+	r.POST("/questions", controllers.CreateQuestion)
+	r.PUT("/questions/:id", middleware.AuthMiddleware(), controllers.UpdateQuestion)
+	r.DELETE("/questions/:id", middleware.AuthMiddleware(), controllers.DeleteQuestion)
+	r.POST("/questions/:id/diskusi", controllers.TambahDiskusi)
 
-	//artikel
+	// Artikel Routes
 	r.GET("/articles", controllers.GetArticles)
 	r.GET("/articles/:id", controllers.GetArticleByID)
-	r.POST("/articles", controllers.CreateArticle)
-	r.PUT("/articles/:id", controllers.UpdateArticle)
-	r.DELETE("/articles/:id", controllers.DeleteArticle)
+	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle)
+	r.PUT("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateArticle)
+	r.DELETE("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteArticle)
 
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")

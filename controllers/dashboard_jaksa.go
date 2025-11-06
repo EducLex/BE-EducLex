@@ -22,11 +22,11 @@ func GetDashboardStats(c *gin.Context) {
 	userCount, _ := config.UserCollection.CountDocuments(ctx, bson.M{})
 
 	c.JSON(http.StatusOK, gin.H{
-		"articles":   articleCount,
-		"questions":  questionCount,
-		"tulisan":    tulisanCount,
-		"peraturan":  peraturanCount,
-		"users":      userCount,
+		"articles":  articleCount,
+		"questions": questionCount,
+		"tulisan":   tulisanCount,
+		"peraturan": peraturanCount,
+		"users":     userCount,
 	})
 }
 

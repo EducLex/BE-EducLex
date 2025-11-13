@@ -53,6 +53,7 @@ func SetupRouter() *gin.Engine {
 	r.PUT("/questions/:id", middleware.AuthMiddleware(), controllers.UpdateQuestion)
 	r.DELETE("/questions/:id", middleware.AuthMiddleware(), controllers.DeleteQuestion)
 	r.POST("/questions/:id/diskusi", controllers.TambahDiskusi)
+	r.GET("/:id/diskusi", controllers.GetDiskusiByQuestionID)
 
 	// Artikel Routes
 	r.GET("/articles", controllers.GetArticles)
@@ -60,6 +61,9 @@ func SetupRouter() *gin.Engine {
 	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle)
 	r.PUT("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateArticle)
 	r.DELETE("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteArticle)
+
+	// ✅ Endpoint jaksa
+	r.POST("/jaksa", controllers.CreateJaksa)
 
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")

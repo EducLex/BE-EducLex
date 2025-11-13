@@ -68,3 +68,12 @@ type TokenBlacklist struct {
 	Token     string    `bson:"token"`
 	ExpiredAt time.Time `bson:"expired_at"`
 }
+
+type Jaksa struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Nama     string             `bson:"nama" json:"nama"`
+	NIP      string             `bson:"nip" json:"nip"`
+	Jabatan  string             `bson:"jabatan" json:"jabatan"`
+	Email    string             `bson:"email" json:"email"`
+	Foto     string             `bson:"foto,omitempty" json:"foto,omitempty"` // optional
+}

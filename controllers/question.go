@@ -163,7 +163,6 @@ func DeleteQuestion(c *gin.Context) {
 
 // ✅ POST: Tambah diskusi lanjutan
 func TambahDiskusi(c *gin.Context) {
-	// Ambil koleksi dari config
 	collection := config.QuestionCollection
 	if collection == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
@@ -190,14 +189,20 @@ func TambahDiskusi(c *gin.Context) {
 		return
 	}
 
-	// Tambahkan tanggal saat ini
 	diskusi.Tanggal = time.Now()
 
-	// Siapkan update
+	// Siapkan update dasar
 	update := bson.M{
 		"$push": bson.M{
 			"diskusi": diskusi,
 		},
+	}
+
+	// Jika pengirim adalah Jaksa → ubah status jadi "Sudah Dijawab"
+	if diskusi.Pengirim == "Jaksa" {
+		update["$set"] = bson.M{
+			"status": "Sudah Dijawab",
+		}
 	}
 
 	// Jalankan update ke MongoDB
@@ -207,11 +212,39 @@ func TambahDiskusi(c *gin.Context) {
 		return
 	}
 
-	// Cek apakah dokumen ditemukan
 	if result.MatchedCount == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Pertanyaan tidak ditemukan"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Diskusi berhasil ditambahkan"})
+}
+
+// Ambil semua diskusi dari satu pertanyaan berdasarkan ID
+func GetDiskusiByQuestionID(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
+		return
+	}
+
+	collection := config.QuestionCollection
+	if collection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
+		return
+	}
+
+	var question models.Question
+	err = collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&question)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pertanyaan tidak ditemukan"})
+		return
+	}
+
+	// Ambil hanya bagian diskusinya
+	c.JSON(http.StatusOK, gin.H{
+		"id":      question.ID.Hex(),
+		"diskusi": question.Diskusi,
+	})
 }

@@ -141,10 +141,10 @@ func ForgotPassword(c *gin.Context) {
 	// Set OTP expiry to 10 minutes
 	expiry := time.Now().Add(10 * time.Minute).Unix()
 
-	// Simpan OTP dan waktu kedaluwarsa di database
-	_, err = config.UserCollection.UpdateOne(
+	// Simpan OTP dan waktu kedaluwarsa di database JaksaCollection
+	_, err = config.JaksaCollection.UpdateOne(
 		context.Background(),
-		bson.M{"_id": user.ID},
+		bson.M{"email": body.Email}, // Menyimpan OTP di collection Jaksa berdasarkan email
 		bson.M{
 			"$set": bson.M{
 				"reset_otp":        otp,
@@ -159,7 +159,7 @@ func ForgotPassword(c *gin.Context) {
 
 	// Kirim OTP ke email pengguna
 	message := fmt.Sprintf("Kode OTP Anda untuk mereset password: %s", otp)
-	err = sendEmail(user.Email, "Reset Password", message)
+	err = sendEmail(body.Email, "Reset Password", message)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Gagal mengirim OTP ke email"})
 		return
@@ -170,8 +170,9 @@ func ForgotPassword(c *gin.Context) {
 }
 
 // Fungsi untuk mereset password pengguna di Jaksa
-func ResetPasswordJaksa(c *gin.Context) {
+func ResetPassword(c *gin.Context) {
 	var body struct {
+		Email       string `json:"email"` // Email pengguna untuk verifikasi OTP
 		OTP         string `json:"otp"`
 		NewPassword string `json:"new_password"`
 	}
@@ -182,22 +183,26 @@ func ResetPasswordJaksa(c *gin.Context) {
 		return
 	}
 
-	// Cari Jaksa berdasarkan OTP di JaksaCollection
+	// Cari Jaksa berdasarkan email dan OTP di JaksaCollection
 	var jaksa models.Jaksa
-	err := config.JaksaCollection.FindOne(context.Background(), bson.M{"reset_otp": body.OTP}).Decode(&jaksa)
+	err := config.JaksaCollection.FindOne(context.Background(), bson.M{
+		"email":    body.Email,
+		"reset_otp": body.OTP,
+	}).Decode(&jaksa)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "OTP tidak valid"})
 		return
 	}
+
+	// Log OTP yang disimpan di database dan yang dimasukkan pengguna
+	fmt.Println("OTP yang disimpan di database:", jaksa.ResetOtp)
+	fmt.Println("OTP yang dimasukkan pengguna:", body.OTP)
 
 	// Cek apakah OTP sudah kedaluwarsa
 	if time.Now().Unix() > jaksa.ResetOtpExpiry {
 		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
 		return
 	}
-
-	fmt.Println("OTP yang disimpan di database:", jaksa.ResetOtp)
-	fmt.Println("OTP yang dimasukkan pengguna:", body.OTP)
 
 	// Hash password baru
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)

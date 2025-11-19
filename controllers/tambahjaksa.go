@@ -12,9 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// ❗ HAPUS INI: var jaksaCollection = config.UserCollection
-// ✔ GUNAKAN LANGSUNG DARI config
-
 // Tambah Jaksa
 func CreateJaksa(c *gin.Context) {
 	jaksaCollection := config.JaksaCollection

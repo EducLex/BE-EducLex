@@ -86,8 +86,8 @@ func SetupRouter() *gin.Engine {
 	peraturan := r.Group("/peraturan")
 	{
 		// Semua user bisa lihat daftar & detail
-		peraturan.GET("", controllers.GetPeraturan)
-		peraturan.GET(":id", controllers.GetPeraturanByID)
+		peraturan.GET("/", controllers.GetPeraturan)
+		peraturan.GET("/:id", controllers.GetPeraturanByID)
 
 		// Hanya admin yang bisa create, update, delete
 		peraturan.POST("", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)

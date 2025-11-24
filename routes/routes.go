@@ -12,11 +12,11 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
+	// CORS BENAR
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://127.0.0.1:5500"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -85,15 +85,15 @@ func SetupRouter() *gin.Engine {
 	// Peraturan (CRUD)
 	peraturan := r.Group("/peraturan")
 	{
-		// Semua user bisa lihat daftar & detail
 		peraturan.GET("/", controllers.GetPeraturan)
 		peraturan.GET("/:id", controllers.GetPeraturanByID)
 
-		// Hanya admin yang bisa create, update, delete
-		peraturan.POST("", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)
-		peraturan.PUT(":id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdatePeraturan)
-		peraturan.DELETE(":id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
+		peraturan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)
+		peraturan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdatePeraturan)
+		peraturan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
 	}
+
+	return r
 
 	//logout
 	r.POST("/auth/logout", controllers.Logout)

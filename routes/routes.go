@@ -93,8 +93,6 @@ func SetupRouter() *gin.Engine {
 		peraturan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
 	}
 
-	return r
-
 	//logout
 	r.POST("/auth/logout", controllers.Logout)
 

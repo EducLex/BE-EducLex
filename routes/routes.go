@@ -77,6 +77,13 @@ func SetupRouter() *gin.Engine {
 	r.PUT("/categories/:id", controllers.UpdateCategory)
 	r.DELETE("/categories/:id", controllers.DeleteCategory)
 
+	// Rute untuk Bidang
+	r.POST("/bidang", controllers.CreateBidang)
+	r.GET("/bidang", controllers.GetBidangs)
+	r.GET("/bidang/:id", controllers.GetBidangByID)
+	r.PUT("/bidang/:id", controllers.UpdateBidang)
+	r.DELETE("/bidang/:id", controllers.DeleteBidang)
+
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")
 	{

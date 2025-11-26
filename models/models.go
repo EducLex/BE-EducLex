@@ -39,9 +39,11 @@ type Question struct {
 	Pertanyaan string             `json:"pertanyaan" bson:"pertanyaan"`
 	Jawaban    string             `json:"jawaban,omitempty" bson:"jawaban,omitempty"`
 	Status     string             `json:"status" bson:"status"`
-	Tipe       string             `json:"tipe,omitempty" bson:"tipe,omitempty"` // "publik" / "internal"
+	Tipe       string             `json:"tipe,omitempty" bson:"tipe,omitempty"` 
 	Tanggal    time.Time          `json:"tanggal" bson:"tanggal"`
 	Diskusi    []Diskusi          `json:"diskusi,omitempty" bson:"diskusi,omitempty"`
+	BidangID   primitive.ObjectID `json:"bidang_id" bson:"bidang_id"` 
+	BidangNama string             `json:"bidang_nama" bson:"bidang_nama"`
 }
 
 type Article struct {
@@ -94,4 +96,10 @@ type Jaksa struct {
 type Category struct {
 	ID   primitive.ObjectID `bson:"_id,omitempty"`
 	Name string             `bson:"name"`
+}
+
+type Bidang struct {
+	ID     primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Nama   string             `json:"nama" bson:"nama"`
+	Status int                `json:"status" bson:"status"`
 }

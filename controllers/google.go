@@ -26,12 +26,22 @@ type GoogleUser struct {
 
 // --- STEP 1: Redirect ke Google ---
 func GoogleLogin(c *gin.Context) {
-	url := config.GoogleOauthConfig.AuthCodeURL(
-		"state-token",
-		oauth2.AccessTypeOffline,
-		oauth2.ApprovalForce,
-	)
-	c.Redirect(http.StatusTemporaryRedirect, url)
+    // ambil redirect dari FE kalau ada
+    redirectURI := c.Query("redirect_uri")
+    if redirectURI == "" {
+        redirectURI = "http://localhost:8080/auth/google/callback" 
+    }
+
+    // override redirect URL di config
+    config.GoogleOauthConfig.RedirectURL = redirectURI
+
+    url := config.GoogleOauthConfig.AuthCodeURL(
+        "state-token",
+        oauth2.AccessTypeOffline,
+        oauth2.ApprovalForce,
+    )
+
+    c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // --- STEP: Callback (auto register or login) ---

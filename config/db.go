@@ -20,6 +20,7 @@ var (
 	TokenBlacklistCollection *mongo.Collection
 	JaksaCollection          *mongo.Collection
 	CategoryCollection       *mongo.Collection
+	BidangCollection         *mongo.Collection
 )
 
 func ConnectDB() {
@@ -52,4 +53,5 @@ func ConnectDB() {
 	TokenBlacklistCollection = client.Database("EducLex").Collection("token_blacklist")
 	JaksaCollection = client.Database("EducLex").Collection("jaksa")
 	CategoryCollection = client.Database("EducLex").Collection("categories")
+	BidangCollection = client.Database("EducLex").Collection("bidang")
 }

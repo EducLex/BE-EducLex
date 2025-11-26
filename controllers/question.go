@@ -28,6 +28,13 @@ func CreateQuestion(c *gin.Context) {
 	input.Tanggal = time.Now()
 	input.Status = "Belum Dijawab"
 
+	// Validasi Bidang
+	if input.BidangID.IsZero() || input.BidangNama == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bidang ID dan Nama harus diisi"})
+		return
+	}
+
+	// Tambahkan pertanyaan ke MongoDB
 	collection := config.QuestionCollection
 	if collection == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi database belum siap"})
@@ -94,7 +101,9 @@ func UpdateQuestion(c *gin.Context) {
 
 	// Ambil data dari body JSON
 	var body struct {
-		Jawaban string `json:"jawaban"`
+		Jawaban    string `json:"jawaban"`
+		BidangID   string `json:"bidang_id"`  // Jika BidangID ingin diupdate
+		BidangNama string `json:"bidang_nama"` // Jika BidangNama ingin diupdate
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid"})
@@ -104,8 +113,10 @@ func UpdateQuestion(c *gin.Context) {
 	// Update field jawaban & status
 	update := bson.M{
 		"$set": bson.M{
-			"jawaban": body.Jawaban,
-			"status":  "Sudah Dijawab",
+			"jawaban":    body.Jawaban,
+			"status":     "Sudah Dijawab",
+			"bidang_id":  body.BidangID,
+			"bidang_nama": body.BidangNama,
 		},
 	}
 

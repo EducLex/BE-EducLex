@@ -6,7 +6,7 @@ import (
 )
 
 var GoogleOauthConfig = &oauth2.Config{
-    RedirectURL:  "http://127.0.0.1:5500/login.html",
+    RedirectURL: "http://localhost/EducLex/google-callback.html",
     ClientID:     "778838656131-jfnap1huoa7igvob44b1159gg0e2q99e.apps.googleusercontent.com",
     ClientSecret: "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",
     Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},

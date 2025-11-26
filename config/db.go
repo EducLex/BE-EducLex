@@ -43,7 +43,7 @@ func ConnectDB() {
 
 	fmt.Println("✅ Connected to MongoDB Atlas!")
 
-	// Pastikan koleksi sudah terinisialisasi
+	// Initialize collections
 	UserCollection = client.Database("EducLex").Collection("users")
 	QuestionCollection = client.Database("EducLex").Collection("questions")
 	ArticleCollection = client.Database("EducLex").Collection("articles")
@@ -52,9 +52,4 @@ func ConnectDB() {
 	TokenBlacklistCollection = client.Database("EducLex").Collection("token_blacklist")
 	JaksaCollection = client.Database("EducLex").Collection("jaksa")
 	CategoryCollection = client.Database("EducLex").Collection("categories")
-
-	// Verifikasi koleksi terhubung
-	if UserCollection == nil || CategoryCollection == nil {
-		log.Fatal("❌ Koleksi MongoDB tidak dapat diakses")
-	}
 }

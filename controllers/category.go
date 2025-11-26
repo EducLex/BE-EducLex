@@ -45,29 +45,25 @@ func SeedCategories() {
 	}
 }
 
-// Koleksi MongoDB untuk kategori
-var categoryCollection = config.CategoryCollection
-
 // Fungsi untuk menambahkan kategori baru
 func CreateCategory(c *gin.Context) {
 	var input models.Category
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal menambahkan kategori"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal menambahkan kategori", "detail": err.Error()})
+		return
+	}
+
+	// Pastikan categoryCollection sudah diinisialisasi
+	if config.CategoryCollection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
 		return
 	}
 
 	// Insert category ke dalam collection MongoDB
 	input.ID = primitive.NewObjectID()
-
-	if config.CategoryCollection == nil {
-		log.Fatal("❌ CategoryCollection is nil!")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database collection is not initialized"})
-		return
-	}
-
 	_, err := config.CategoryCollection.InsertOne(context.Background(), input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan kategori"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan kategori", "detail": err.Error()})
 		return
 	}
 
@@ -79,10 +75,16 @@ func CreateCategory(c *gin.Context) {
 
 // Ambil semua kategori
 func GetCategories(c *gin.Context) {
+	// Periksa apakah collection sudah diinisialisasi
+	if config.CategoryCollection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := categoryCollection.Find(ctx, bson.M{})
+	cursor, err := config.CategoryCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil kategori", "detail": err.Error()})
 		return
@@ -116,8 +118,14 @@ func GetCategoryByID(c *gin.Context) {
 		return
 	}
 
+	// Periksa apakah collection sudah diinisialisasi
+	if config.CategoryCollection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+		return
+	}
+
 	var category models.Category
-	err = categoryCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&category)
+	err = config.CategoryCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&category)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
@@ -139,6 +147,12 @@ func UpdateCategory(c *gin.Context) {
 		return
 	}
 
+	// Periksa apakah collection sudah diinisialisasi
+	if config.CategoryCollection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+		return
+	}
+
 	var input models.Category
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal membaca input", "detail": err.Error()})
@@ -152,7 +166,7 @@ func UpdateCategory(c *gin.Context) {
 		},
 	}
 
-	result, err := categoryCollection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
+	result, err := config.CategoryCollection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui kategori", "detail": err.Error()})
 		return
@@ -175,7 +189,13 @@ func DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	res, err := categoryCollection.DeleteOne(context.Background(), bson.M{"_id": objID})
+	// Periksa apakah collection sudah diinisialisasi
+	if config.CategoryCollection == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+		return
+	}
+
+	res, err := config.CategoryCollection.DeleteOne(context.Background(), bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus kategori", "detail": err.Error()})
 		return

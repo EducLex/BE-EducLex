@@ -114,33 +114,46 @@ func Register(c *gin.Context) {
 
 }
 
+// Fungsi login
 func Login(c *gin.Context) {
 	var input struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
+
+	// Bind JSON input
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Cek apakah user ada
 	var user models.User
 	err := config.UserCollection.FindOne(ctx, bson.M{"username": input.Username}).Decode(&user)
+
+	// Jika tidak ditemukan, kembalikan error
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+	// Verifikasi password user
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
-	c.JSON(http.StatusOK, gin.H{"message": "login success", "token": token})
+	// Generate JWT token for User
+	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role) // Menggunakan role user
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login success",
+		"token":   token,
+	})
 }
 
 // Register Admin

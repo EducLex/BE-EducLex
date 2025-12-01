@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // =========================
@@ -24,38 +25,47 @@ func CreateJaksa(c *gin.Context) {
 		return
 	}
 
-	// Ambil userId dari middleware autentikasi
-	userId, _ := c.Get("userId")
-	if userId == nil {
-		c.JSON(400, gin.H{"error": "User tidak terautentikasi"})
+	// Hash password sebelum disimpan ke database
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to hash password"})
 		return
 	}
+	body.Password = string(hashedPassword)
 
-	// Set userId ke dalam objek Jaksa
-	body.UserID = userId.(primitive.ObjectID)
-
-	// Validasi BidangID dan BidangNama
-	if body.BidangID.IsZero() || body.BidangNama == "" {
-		c.JSON(400, gin.H{"error": "Bidang ID dan Nama harus diisi"})
-		return
-	}
-
-	// Insert Jaksa baru ke MongoDB
+	// Insert Jaksa baru ke MongoDB (koleksi Jaksa)
 	result, err := config.JaksaCollection.InsertOne(context.Background(), body)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Gagal menambahkan Jaksa"})
 		return
 	}
 
-	// Mengambil ID yang baru dimasukkan
+	// Mengambil ID yang baru dimasukkan untuk Jaksa
 	insertedID := result.InsertedID.(primitive.ObjectID)
 	body.ID = insertedID
 
+	// Tambahkan Jaksa ke koleksi User (buat entry di User)
+	user := models.User{
+		ID:       body.ID,
+		Username: body.Username,
+		Email:    body.Email,
+		Password: body.Password,  
+		Role:     "jaksa",       
+	}
+
+	_, err = config.UserCollection.InsertOne(context.Background(), user)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal menambahkan Jaksa ke koleksi User"})
+		return
+	}
+
 	c.JSON(200, gin.H{
-		"message": "Jaksa berhasil ditambahkan",
+		"message": "Jaksa berhasil ditambahkan ke koleksi Jaksa dan User",
 		"data":    body,
 	})
 }
+
+
 
 // Get All Jaksa
 func GetAllJaksa(c *gin.Context) {

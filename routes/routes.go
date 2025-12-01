@@ -43,6 +43,10 @@ func SetupRouter() *gin.Engine {
 	// Data Pengguna
 	r.GET("/users", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetAllUsers)
 
+	r.POST("/auth/verify-email", controllers.VerifyEmail)
+
+	r.POST("/auth/register-jaksa", controllers.CreateJaksa) 
+
 	// Pertanyaan dan Pengaduan
 	r.GET("/questions", controllers.GetQuestions)
 	r.POST("/questions", controllers.CreateQuestion)

@@ -25,6 +25,7 @@ func GenerateJWT(userID string, username string, role string) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
+	
 }
 
 // AuthMiddleware verifikasi JWT + cek blacklist

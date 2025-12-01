@@ -107,11 +107,11 @@ func Register(c *gin.Context) {
 
 	// Generate JWT token
 	token, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
-
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Registrasi sukses, cek email Anda untuk verifikasi",
 		"token":   token,
 	})
+
 }
 
 func Login(c *gin.Context) {

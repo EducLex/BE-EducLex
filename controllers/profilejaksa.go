@@ -6,7 +6,9 @@ import (
 	"log"
 	"math/rand"
 	"net/smtp"
+	"net"
 	"time"
+	"crypto/tls"
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
@@ -74,8 +76,8 @@ func UpdateJaksaProfile(c *gin.Context) {
 		NIP        string `json:"nip"`
 		Email      string `json:"email"`
 		Foto       string `json:"foto"`
-		BidangID   string `json:"bidang_id"`  
-		BidangNama string `json:"bidang_nama"` 
+		BidangID   string `json:"bidang_id"`
+		BidangNama string `json:"bidang_nama"`
 	}
 
 	// Bind input dari JSON body
@@ -93,11 +95,11 @@ func UpdateJaksaProfile(c *gin.Context) {
 	// Siapkan data update
 	update := bson.M{
 		"$set": bson.M{
-			"nama":       body.Nama,
-			"nip":        body.NIP,
-			"email":      body.Email,
-			"foto":       body.Foto,
-			"bidang_id":  body.BidangID,   // Update BidangID
+			"nama":        body.Nama,
+			"nip":         body.NIP,
+			"email":       body.Email,
+			"foto":        body.Foto,
+			"bidang_id":   body.BidangID,   // Update BidangID
 			"bidang_nama": body.BidangNama, // Update BidangNama
 		},
 	}
@@ -121,6 +123,7 @@ func generateOTP() string {
 	return otp
 }
 
+// Fungsi untuk verifikasi email
 func VerifyEmail(c *gin.Context) {
 	var body struct {
 		Email string `json:"email"`
@@ -136,7 +139,7 @@ func VerifyEmail(c *gin.Context) {
 	// Cari pengguna berdasarkan email dan OTP
 	var user models.User
 	err := config.UserCollection.FindOne(context.Background(), bson.M{
-		"email":                 body.Email,
+		"email": body.Email,
 		"email_verification_otp": body.OTP,
 	}).Decode(&user)
 	if err != nil {
@@ -172,7 +175,6 @@ func VerifyEmail(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi"})
 }
 
-
 // Fungsi untuk mengirim email dengan SMTP Gmail
 func sendEmail(to, subject, message string) error {
 	from := "dewidesember20@gmail.com" // Ganti dengan email Gmail kamu
@@ -180,25 +182,82 @@ func sendEmail(to, subject, message string) error {
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
+	smtpPort := "587" // Port untuk TLS
 
 	// Format pesan email
 	msg := fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, message)
 
-	// Mengonfigurasi otentikasi SMTP
-	auth := smtp.PlainAuth("", from, pass, smtpHost)
-
-	// Log sebelum pengiriman email
-	log.Printf("Sending email to %s with subject %s", to, subject)
-
-	// Kirim email
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(msg))
+	// Membuat koneksi ke server SMTP
+	serverAddr := smtpHost + ":" + smtpPort
+	conn, err := net.DialTimeout("tcp", serverAddr, 30*time.Second)
 	if err != nil {
-		log.Println("Error sending email:", err)
-		return err
+		log.Println("Error dialing server:", err)
+		return fmt.Errorf("gagal menghubungi server SMTP: %w", err)
+	}
+	defer conn.Close()
+
+	// Membuat konfigurasi TLS untuk koneksi
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         smtpHost, // Harus ada server name
 	}
 
-	log.Println("Email sent successfully!")  // Log setelah pengiriman email berhasil
+	// Menggunakan koneksi TLS
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		log.Println("Error creating SMTP client:", err)
+		return fmt.Errorf("gagal membuat client SMTP: %w", err)
+	}
+
+	// Memulai sesi TLS
+	if err := client.StartTLS(tlsConfig); err != nil {
+		log.Println("Error starting TLS:", err)
+		return fmt.Errorf("gagal memulai sesi TLS: %w", err)
+	}
+
+	// Autentikasi dengan server SMTP
+	auth := smtp.PlainAuth("", from, pass, smtpHost)
+	if err := client.Auth(auth); err != nil {
+		log.Println("Error authenticating with SMTP:", err)
+		return fmt.Errorf("gagal otentikasi ke SMTP: %w", err)
+	}
+
+	// Menentukan pengirim dan penerima
+	if err := client.Mail(from); err != nil {
+		log.Println("Error setting sender:", err)
+		return fmt.Errorf("gagal menetapkan pengirim: %w", err)
+	}
+
+	// Menambahkan penerima email
+	if err := client.Rcpt(to); err != nil {
+		log.Println("Error setting recipient:", err)
+		return fmt.Errorf("gagal menetapkan penerima: %w", err)
+	}
+
+	// Menulis email ke dalam koneksi
+	writer, err := client.Data()
+	if err != nil {
+		log.Println("Error opening writer:", err)
+		return fmt.Errorf("gagal membuka penulis: %w", err)
+	}
+
+	_, err = writer.Write([]byte(msg))
+	if err != nil {
+		log.Println("Error writing email:", err)
+		return fmt.Errorf("gagal menulis pesan email: %w", err)
+	}
+
+	// Mengakhiri pengiriman email
+	err = writer.Close()
+	if err != nil {
+		log.Println("Error closing writer:", err)
+		return fmt.Errorf("gagal menutup penulis: %w", err)
+	}
+
+	// Mengakhiri koneksi SMTP
+	client.Quit()
+
+	log.Println("Email berhasil dikirim!")
 	return nil
 }
 
@@ -276,7 +335,7 @@ func ResetPassword(c *gin.Context) {
 	// Cari pengguna berdasarkan email dan OTP
 	var user models.User
 	err := config.UserCollection.FindOne(context.Background(), bson.M{
-		"email":    body.Email,
+		"email":     body.Email,
 		"reset_otp": body.OTP,
 	}).Decode(&user)
 	if err != nil {
@@ -316,4 +375,3 @@ func ResetPassword(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Password berhasil direset"})
 }
-

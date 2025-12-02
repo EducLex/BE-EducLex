@@ -40,7 +40,7 @@ func CreatePeraturan(c *gin.Context) {
 // ✅ Ambil semua peraturan (User & Admin)
 func GetPeraturan(c *gin.Context) {
     // 🔥 PAKSA CORS HEADER DI SINI
-    c.Header("Access-Control-Allow-Origin", "http://127.0.0.1:5500")
+    c.Header("Access-Control-Allow-Origin", "http://127.0.0.1:5501")
     c.Header("Access-Control-Allow-Credentials", "true")
     c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, Accept")
     c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")

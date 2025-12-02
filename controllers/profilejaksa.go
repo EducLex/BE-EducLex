@@ -119,11 +119,11 @@ func UpdateJaksaProfile(c *gin.Context) {
 // Fungsi untuk generate OTP secara acak
 func generateOTP() string {
 	// Membuat OTP acak 6 digit
-	otp := fmt.Sprintf("%06d", rand.Intn(1000000)) // Generate angka acak antara 000000 hingga 999999
+	otp := fmt.Sprintf("%06d", rand.Intn(1000000))
 	return otp
 }
 
-// Fungsi untuk verifikasi email
+// Fungsi untuk verifikasi email (untuk User dan Jaksa)
 func VerifyEmail(c *gin.Context) {
 	var body struct {
 		Email string `json:"email"`
@@ -136,31 +136,69 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Cari Jaksa berdasarkan email dan OTP
-	var jaksa models.Jaksa
-	err := config.JaksaCollection.FindOne(context.Background(), bson.M{
-		"email":                  body.Email,
-		"email_verification_otp": body.OTP,
-	}).Decode(&jaksa)
-	if err != nil {
-		c.JSON(404, gin.H{"error": "OTP tidak valid atau email tidak terdaftar"})
+	// Cari pengguna berdasarkan email di koleksi User
+	var user models.User
+	err := config.UserCollection.FindOne(context.Background(), bson.M{"email": body.Email}).Decode(&user)
+	if err == nil {
+		// Periksa apakah OTP sesuai
+		if user.EmailVerificationOTP != body.OTP {
+			c.JSON(400, gin.H{"error": "OTP tidak valid"})
+			return
+		}
+
+		// Cek apakah OTP sudah kedaluwarsa
+		if time.Now().Unix() > user.EmailVerificationExpiry {
+			c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
+			return
+		}
+
+		// Update status email terverifikasi untuk User
+		_, err = config.UserCollection.UpdateOne(
+			context.Background(),
+			bson.M{"email": body.Email},
+			bson.M{
+				"$set": bson.M{"email_verified": true},
+				"$unset": bson.M{
+					"email_verification_otp":    "",
+					"email_verification_expiry": "",
+				},
+			},
+		)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Gagal memperbarui status verifikasi email"})
+			return
+		}
+
+		c.JSON(200, gin.H{"message": "Email berhasil diverifikasi (User)"})
 		return
 	}
 
-	// Cek apakah OTP sudah kedaluwarsa
+	// Jika tidak ditemukan di User, coba cari di koleksi Jaksa
+	var jaksa models.Jaksa
+	err = config.JaksaCollection.FindOne(context.Background(), bson.M{"email": body.Email}).Decode(&jaksa)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Email tidak terdaftar sebagai User atau Jaksa"})
+		return
+	}
+
+	// Periksa apakah OTP sesuai dengan Jaksa
+	if jaksa.EmailVerificationOTP != body.OTP {
+		c.JSON(400, gin.H{"error": "OTP tidak valid"})
+		return
+	}
+
+	// Cek apakah OTP sudah kedaluwarsa untuk Jaksa
 	if time.Now().Unix() > jaksa.EmailVerificationExpiry {
 		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
 		return
 	}
 
-	// Update status email terverifikasi
+	// Update status email terverifikasi untuk Jaksa
 	_, err = config.JaksaCollection.UpdateOne(
 		context.Background(),
 		bson.M{"email": body.Email},
 		bson.M{
-			"$set": bson.M{
-				"email_verified": true,
-			},
+			"$set": bson.M{"email_verified": true},
 			"$unset": bson.M{
 				"email_verification_otp":    "",
 				"email_verification_expiry": "",
@@ -168,21 +206,21 @@ func VerifyEmail(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Gagal memperbarui status verifikasi email"})
+		c.JSON(500, gin.H{"error": "Gagal memperbarui status verifikasi email Jaksa"})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi"})
+	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi (Jaksa)"})
 }
 
 // Fungsi untuk mengirim email dengan SMTP Gmail
 func sendEmail(to, subject, message string) error {
-	from := "dewidesember20@gmail.com" // Ganti dengan email Gmail kamu
-	pass := "pezf jucw gssc mmar"      // Ganti dengan App Password yang kamu buat
+	from := "dewidesember20@gmail.com"
+	pass := "pezf jucw gssc mmar"
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"
-	smtpPort := "587" // Port untuk TLS
+	smtpPort := "587"
 
 	// Format pesan email
 	msg := fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, message)
@@ -199,7 +237,7 @@ func sendEmail(to, subject, message string) error {
 	// Membuat konfigurasi TLS untuk koneksi
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: false,
-		ServerName:         smtpHost, // Harus ada server name
+		ServerName:         smtpHost,
 	}
 
 	// Menggunakan koneksi TLS

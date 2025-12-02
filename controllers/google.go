@@ -104,7 +104,7 @@ func GoogleCallback(c *gin.Context) {
 
 	// Redirect ke frontend (index.html) dengan query params
 	redirectURL := fmt.Sprintf(
-		"http://127.0.0.1:5500/index.html?token=%s&user_id=%s&username=%s&email=%s&role=%s",
+		"http://127.0.0.1:5501/index.html?token=%s&user_id=%s&username=%s&email=%s&role=%s",
 		url.QueryEscape(jwtToken),
 		url.QueryEscape(user.ID.Hex()),
 		url.QueryEscape(user.Username),

@@ -57,7 +57,7 @@ type Article struct {
 	Gambar     string             `bson:"gambar,omitempty" json:"gambar,omitempty"`
 	Dokumen    string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"`
 	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
-	CategoryID primitive.ObjectID `bson:"categoryId" json:"categoryId"` // ID kategori
+	CategoryID primitive.ObjectID `bson:"categoryId" json:"categoryId"`
 }
 
 type Tulisan struct {

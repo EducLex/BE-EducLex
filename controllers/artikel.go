@@ -16,21 +16,29 @@ import (
 // Koleksi MongoDB
 var articleCollection = config.ArticleCollection
 
-// ✅ Tambah artikel baru (Admin)
 func CreateArticle(c *gin.Context) {
+	// Membuat folder uploads jika belum ada
 	os.MkdirAll("uploads", os.ModePerm)
 
 	var input models.Article
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Mengambil data dari Form Data (bukan JSON)
+	input.Judul = c.PostForm("judul")
+	input.Isi = c.PostForm("isi")
+
+	// Mengambil categoryId dari Form Data (sebagai string)
+	categoryID := c.PostForm("categoryId")
+	if categoryID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID tidak boleh kosong"})
 		return
 	}
 
-	// Validasi categoryId
-	if input.CategoryID.IsZero() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID harus diisi"})
+	// Mengonversi categoryId menjadi primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(categoryID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID tidak valid"})
 		return
 	}
+	input.CategoryID = objectID
 
 	// Menangani file gambar
 	file, _ := c.FormFile("gambar")
@@ -136,6 +144,35 @@ func UpdateArticle(c *gin.Context) {
 		return
 	}
 
+	// Menangani file gambar jika ada
+	file, err := c.FormFile("gambar")
+	if err != nil && err.Error() != "multipart: no such file" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File gambar diperlukan"})
+		return
+	}
+	if file != nil {
+		// Simpan file gambar baru ke direktori uploads
+		path := "uploads/" + file.Filename
+		if err := c.SaveUploadedFile(file, path); err == nil {
+			input.Gambar = path
+		}
+	}
+
+	// Menangani file dokumen jika ada
+	dokumen, err := c.FormFile("dokumen")
+	if err != nil && err.Error() != "multipart: no such file" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File dokumen diperlukan"})
+		return
+	}
+	if dokumen != nil {
+		// Simpan file dokumen baru ke direktori uploads
+		path := "uploads/" + dokumen.Filename
+		if err := c.SaveUploadedFile(dokumen, path); err == nil {
+			input.Dokumen = path
+		}
+	}
+
+	// Update artikel di MongoDB
 	update := bson.M{
 		"$set": bson.M{
 			"judul":     input.Judul,
@@ -144,7 +181,7 @@ func UpdateArticle(c *gin.Context) {
 		},
 	}
 
-	// ✅ pakai config.ArticleCollection
+	// Update artikel di koleksi
 	_, err = config.ArticleCollection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui artikel"})

@@ -26,26 +26,25 @@ type GoogleUser struct {
 
 // --- STEP 1: Redirect ke Google ---
 func GoogleLogin(c *gin.Context) {
-    // ambil redirect dari FE kalau ada
-    redirectURI := c.Query("redirect_uri")
-    if redirectURI == "" {
-        redirectURI = "http://localhost:8080/auth/google/callback" 
-    }
+	// ambil redirect dari FE kalau ada
+	redirectURI := c.Query("redirect_uri")
+	if redirectURI == "" {
+		redirectURI = "http://localhost:8080/auth/google/callback"
+	}
 
-    // override redirect URL di config
-    config.GoogleOauthConfig.RedirectURL = redirectURI
+	// override redirect URL di config
+	config.GoogleOauthConfig.RedirectURL = redirectURI
 
-    url := config.GoogleOauthConfig.AuthCodeURL(
-        "state-token",
-        oauth2.AccessTypeOffline,
-        oauth2.ApprovalForce,
-    )
+	url := config.GoogleOauthConfig.AuthCodeURL(
+		"state-token",
+		oauth2.AccessTypeOffline,
+		oauth2.ApprovalForce,
+	)
 
-    c.Redirect(http.StatusTemporaryRedirect, url)
+	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // --- STEP: Callback (auto register or login) ---
-
 func GoogleCallback(c *gin.Context) {
 	// ambil "code" dari URL yang dikirim Google
 	code := c.Query("code")
@@ -89,16 +88,31 @@ func GoogleCallback(c *gin.Context) {
 	if err != nil {
 		// kalau tidak ketemu → insert user baru
 		user = models.User{
-			ID:       primitive.NewObjectID(),
-			Username: gUser.Name,
-			Email:    gUser.Email,
-			Role:     "user",
+			ID:            primitive.NewObjectID(),
+			Username:      gUser.Name,
+			Email:         gUser.Email,
+			Role:          "user",
+			EmailVerified: true, // Set email_verified ke true secara otomatis
 		}
 		if _, err := config.UserCollection.InsertOne(ctx, user); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal simpan user google"})
 			return
 		}
+	} else {
+		// Jika sudah ada, update status email_verified jadi true
+		_, err = config.UserCollection.UpdateOne(
+			context.Background(),
+			bson.M{"email": gUser.Email},
+			bson.M{
+				"$set": bson.M{"email_verified": true},
+			},
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal memperbarui status verifikasi email"})
+			return
+		}
 	}
+
 	// --- Buat JWT
 	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
 
@@ -113,5 +127,5 @@ func GoogleCallback(c *gin.Context) {
 	)
 
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
-
 }
+

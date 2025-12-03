@@ -136,11 +136,11 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Cari pengguna berdasarkan email di koleksi User
+	// Cek di koleksi User terlebih dahulu
 	var user models.User
 	err := config.UserCollection.FindOne(context.Background(), bson.M{"email": body.Email}).Decode(&user)
 	if err == nil {
-		// Periksa apakah OTP sesuai
+		// Periksa apakah OTP sesuai untuk User
 		if user.EmailVerificationOTP != body.OTP {
 			c.JSON(400, gin.H{"error": "OTP tidak valid"})
 			return
@@ -159,7 +159,7 @@ func VerifyEmail(c *gin.Context) {
 			bson.M{
 				"$set": bson.M{"email_verified": true},
 				"$unset": bson.M{
-					"email_verification_otp":    "",
+					"email_verification_otp":    "", 
 					"email_verification_expiry": "",
 				},
 			},

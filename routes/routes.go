@@ -98,7 +98,7 @@ func SetupRouter() *gin.Engine {
 
 	r.GET("/tulisan/download/:id", controllers.DownloadFile)
 
-	// Peraturan (CRUD)
+	// Peraturan
 	peraturan := r.Group("/peraturan")
 	{
 		peraturan.GET("", controllers.GetPeraturan)

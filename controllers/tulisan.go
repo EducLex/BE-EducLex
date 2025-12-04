@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"os"
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
@@ -57,40 +58,53 @@ func GetAllTulisan(c *gin.Context) {
 
 // CREATE tulisan (admin only)
 func CreateTulisan(c *gin.Context) {
-	role, _ := c.Get("role")
-	if role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Hanya admin yang bisa menambahkan tulisan"})
-		return
-	}
+	// Membuat folder uploads jika belum ada
+	os.MkdirAll("uploads", os.ModePerm)
 
 	var input models.Tulisan
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Mengambil data dari Form Data (bukan JSON)
+	input.Penulis = c.PostForm("penulis")
+	input.Judul = c.PostForm("judul")
+	input.Isi = c.PostForm("isi")
+
+	// Mengambil bidang_id dari Form Data (sebagai string)
+	bidangID := c.PostForm("bidang_id")
+	if bidangID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bidang ID tidak boleh kosong"})
 		return
 	}
 
-	// Validasi BidangID dan ambil nama Bidang berdasarkan BidangID
-	if input.BidangID.IsZero() {
+	// Mengonversi bidang_id menjadi primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(bidangID)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Bidang ID tidak valid"})
 		return
 	}
+	input.BidangID = objectID
 
-	// Cari Bidang berdasarkan BidangID
-	var bidang models.Bidang
-	err := config.BidangCollection.FindOne(context.Background(), bson.M{"_id": input.BidangID}).Decode(&bidang)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Bidang tidak ditemukan"})
-		return
+	// Menangani file gambar
+	file, err := c.FormFile("gambar")
+	if err == nil {
+		path := "uploads/" + file.Filename
+		if err := c.SaveUploadedFile(file, path); err == nil {
+			input.File = path
+		}
 	}
 
-	// Set BidangNama berdasarkan BidangID
-	input.BidangNama = bidang.Nama
+	// Menangani file dokumen
+	dokumen, err := c.FormFile("dokumen")
+	if err == nil {
+		path := "uploads/" + dokumen.Filename
+		if err := c.SaveUploadedFile(dokumen, path); err == nil {
+			input.File = path
+		}
+	}
 
 	// Menambahkan createdAt dan updatedAt
 	input.CreatedAt = time.Now()
 	input.UpdatedAt = time.Now()
 
-	// Insert ke database
+	// Insert ke dalam collection Tulisan
 	_, err = config.TulisanCollection.InsertOne(context.Background(), input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -99,6 +113,7 @@ func CreateTulisan(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Tulisan berhasil ditambahkan!"})
 }
+
 
 // UPDATE tulisan (admin only)
 func UpdateTulisan(c *gin.Context) {

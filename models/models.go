@@ -66,6 +66,8 @@ type Tulisan struct {
 	Judul      string             `bson:"judul" json:"judul"`
 	Isi        string             `bson:"isi" json:"isi"`
 	File       string             `bson:"file,omitempty" json:"file,omitempty"`
+	Gambar     string             `bson:"gambar,omitempty" json:"gambar,omitempty"` 
+	Dokumen    string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"` 
 	BidangID   primitive.ObjectID `bson:"bidang_id" json:"bidang_id"`
 	BidangNama string             `bson:"bidang_nama" json:"bidang_nama"`
 	CreatedAt  time.Time          `json:"createdAt" bson:"createdAt"`

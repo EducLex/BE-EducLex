@@ -108,8 +108,10 @@ func CreateJaksa(c *gin.Context) {
 		ID:       body.ID,
 		Username: body.Username,
 		Email:    body.Email,
-		Password: body.Password, // Menggunakan password yang sudah di-hash
-		Role:     "jaksa",       // Menandakan ini adalah role Jaksa
+		Password: body.Password, 
+		Role:     "jaksa",       
+		EmailVerificationOTP:    emailVerificationOTP,
+		EmailVerificationExpiry: emailVerificationExpiry,
 	}
 
 	_, err = config.UserCollection.InsertOne(context.Background(), user)

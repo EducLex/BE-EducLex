@@ -136,11 +136,11 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Cek di koleksi User terlebih dahulu
+	// Cari pengguna berdasarkan email di koleksi User
 	var user models.User
 	err := config.UserCollection.FindOne(context.Background(), bson.M{"email": body.Email}).Decode(&user)
 	if err == nil {
-		// Periksa apakah OTP sesuai untuk User
+		// Verifikasi OTP
 		if user.EmailVerificationOTP != body.OTP {
 			c.JSON(400, gin.H{"error": "OTP tidak valid"})
 			return
@@ -159,7 +159,7 @@ func VerifyEmail(c *gin.Context) {
 			bson.M{
 				"$set": bson.M{"email_verified": true},
 				"$unset": bson.M{
-					"email_verification_otp":    "", 
+					"email_verification_otp":    "",
 					"email_verification_expiry": "",
 				},
 			},
@@ -169,7 +169,7 @@ func VerifyEmail(c *gin.Context) {
 			return
 		}
 
-		c.JSON(200, gin.H{"message": "Email berhasil diverifikasi (User)"})
+		c.JSON(200, gin.H{"message": "Email berhasil diverifikasi"})
 		return
 	}
 
@@ -181,7 +181,7 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Periksa apakah OTP sesuai dengan Jaksa
+	// Verifikasi OTP Jaksa
 	if jaksa.EmailVerificationOTP != body.OTP {
 		c.JSON(400, gin.H{"error": "OTP tidak valid"})
 		return
@@ -210,7 +210,7 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi (Jaksa)"})
+	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi"})
 }
 
 // Fungsi untuk mengirim email dengan SMTP Gmail

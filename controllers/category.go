@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Fungsi untuk seed kategori default
@@ -53,14 +52,51 @@ func CreateCategory(c *gin.Context) {
 		return
 	}
 
-	// Pastikan categoryCollection sudah diinisialisasi
-	if config.CategoryCollection == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+	// Validasi kategori dan subkategori
+	if input.Name != "internal" && input.Name != "eksternal" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kategori harus 'internal' atau 'eksternal'"})
 		return
 	}
 
-	// Insert category ke dalam collection MongoDB
+	// Validasi subkategori internal
+	if input.Name == "internal" {
+		internalCategories := []string{"Pembinaan", "Intelijen", "Pidana Umum", "Pidana Khusus", "Perdata dan Tata Usaha Negara", "Pidana Militer", "Asisten Pengawasan"}
+		subCategory := c.DefaultPostForm("subkategori", "")
+		validSubCategory := false
+		for _, category := range internalCategories {
+			if subCategory == category {
+				validSubCategory = true
+				break
+			}
+		}
+		if !validSubCategory {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Subkategori internal tidak valid"})
+			return
+		}
+	}
+
+	// Validasi subkategori eksternal
+	if input.Name == "eksternal" {
+		eksternalCategories := []string{"Peraturan UUD", "Peraturan Presiden", "Perpres", "Keppres"}
+		subCategory := c.DefaultPostForm("subkategori", "")
+		validSubCategory := false
+		for _, category := range eksternalCategories {
+			if subCategory == category {
+				validSubCategory = true
+				break
+			}
+		}
+		if !validSubCategory {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Subkategori eksternal tidak valid"})
+			return
+		}
+	}
+
+	// Menyimpan data kategori baru
+	input.CreatedAt = time.Now()
+	input.UpdatedAt = time.Now()
 	input.ID = primitive.NewObjectID()
+
 	_, err := config.CategoryCollection.InsertOne(context.Background(), input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan kategori", "detail": err.Error()})
@@ -69,73 +105,45 @@ func CreateCategory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Kategori berhasil ditambahkan",
-		"id":      input.ID,
+		"data":    input,
 	})
 }
 
-// Ambil semua kategori
-func GetCategories(c *gin.Context) {
-	// Periksa apakah collection sudah diinisialisasi
-	if config.CategoryCollection == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cursor, err := config.CategoryCollection.Find(ctx, bson.M{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil kategori", "detail": err.Error()})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	var categories []models.Category
-	for cursor.Next(ctx) {
-		var category models.Category
-		if err := cursor.Decode(&category); err != nil {
-			log.Printf("Error decoding category: %v", err)
-			continue
-		}
-		categories = append(categories, category)
-	}
-
-	if len(categories) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Tidak ada kategori ditemukan"})
-		return
-	}
-
-	c.JSON(http.StatusOK, categories)
-}
-
-// Ambil kategori berdasarkan ID
+// Fungsi untuk mengambil kategori berdasarkan ID
 func GetCategoryByID(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid", "detail": err.Error()})
-		return
-	}
-
-	// Periksa apakah collection sudah diinisialisasi
-	if config.CategoryCollection == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Category collection not initialized"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
 		return
 	}
 
 	var category models.Category
 	err = config.CategoryCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&category)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil kategori", "detail": err.Error()})
-		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Kategori tidak ditemukan"})
 		return
 	}
 
 	c.JSON(http.StatusOK, category)
+}
+
+// Fungsi untuk mengambil semua kategori
+func GetCategories(c *gin.Context) {
+	cursor, err := config.CategoryCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var categories []models.Category
+	if err := cursor.All(context.Background(), &categories); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, categories)
 }
 
 // Update kategori

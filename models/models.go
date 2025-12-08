@@ -66,8 +66,8 @@ type Tulisan struct {
 	Judul      string             `bson:"judul" json:"judul"`
 	Isi        string             `bson:"isi" json:"isi"`
 	File       string             `bson:"file,omitempty" json:"file,omitempty"`
-	Gambar     string             `bson:"gambar,omitempty" json:"gambar,omitempty"` 
-	Dokumen    string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"` 
+	Gambar     string             `bson:"gambar,omitempty" json:"gambar,omitempty"`
+	Dokumen    string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"`
 	BidangID   primitive.ObjectID `bson:"bidang_id" json:"bidang_id"`
 	BidangNama string             `bson:"bidang_nama" json:"bidang_nama"`
 	CreatedAt  time.Time          `json:"createdAt" bson:"createdAt"`
@@ -79,6 +79,8 @@ type Peraturan struct {
 	Judul     string    `bson:"judul" json:"judul"`
 	Isi       string    `bson:"isi" json:"isi"`
 	Kategori  string    `bson:"kategori" json:"kategori"`
+	Gambar    string             `bson:"gambar,omitempty" json:"gambar,omitempty"`  
+	Dokumen   string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"`
 	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }
@@ -109,8 +111,10 @@ type Jaksa struct {
 }
 
 type Category struct {
-	ID   primitive.ObjectID `bson:"_id,omitempty"`
-	Name string             `bson:"name"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name      string             `bson:"name" json:"name"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
 type Bidang struct {

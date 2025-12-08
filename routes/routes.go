@@ -12,7 +12,7 @@ func SetupRouter() *gin.Engine {
 
 	// Konfigurasi CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://127.0.0.1:5501"}, 
+		AllowOrigins:     []string{"http://127.0.0.1:5501"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -66,6 +66,8 @@ func SetupRouter() *gin.Engine {
 	r.GET("/jaksa", controllers.GetAllJaksa)
 	r.PUT("/jaksa/:id", controllers.UpdateJaksa)
 	r.DELETE("/jaksa/:id", controllers.DeleteJaksa)
+	r.GET("/jaksa/dashboard/stats", controllers.GetJaksaDashboardStats)
+	r.GET("/jaksa/pertanyaan", controllers.GetUnansweredQuestions)
 
 	// PROFILE JAKSA
 	r.GET("/jaksa/profile/:id", controllers.GetJaksaProfile)

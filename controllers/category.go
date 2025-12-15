@@ -61,7 +61,7 @@ func CreateCategory(c *gin.Context) {
 
 	// Validasi subkategori internal
 	if input.Name == "internal" {
-		internalCategories := []string{"Pembinaan", "Intelijen", "Pidana Umum", "Pidana Khusus", "Perdata dan Tata Usaha Negara", "Pidana Militer", "Pengawasan"}
+		internalCategories := []string{"Pembinaan", "Intelijen", "Pidana Umum", "Pidana Khusus", "Perdata dan Tata Usaha Negara", "Pidana Militer", "Pengawasan", "Pemulihan Aset"}
 		if !contains(internalCategories, input.Subkategori) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Subkategori internal tidak valid"})
 			return

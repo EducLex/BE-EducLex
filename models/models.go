@@ -14,6 +14,7 @@ type User struct {
 	GoogleID                string             `bson:"google_id,omitempty" json:"google_id"`
 	Role                    string             `bson:"role,omitempty" json:"role"`
 	Token                   string             `bson:"token,omitempty" json:"token"`
+	JaksaID                 primitive.ObjectID `bson:"jaksa_id,omitempty"`
 	ResetOtp                string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
 	ResetOtpExpiry          int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
 	EmailVerified           bool               `bson:"email_verified" json:"email_verified"`

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/smtp"
 	"time"
-	"os"
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
@@ -71,21 +70,6 @@ func CreateJaksa(c *gin.Context) {
 	emailVerificationOTP := generateOTP()
 	emailVerificationExpiry := time.Now().Add(10 * time.Minute).Unix()
 
-	// Handle file uploads
-	// Ensure the "uploads" folder exists
-	os.MkdirAll("uploads", os.ModePerm)
-
-	// Handle image file (Foto)
-	file, err := c.FormFile("gambar")
-	if err == nil {
-		path := "uploads/" + file.Filename
-		if err := c.SaveUploadedFile(file, path); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan gambar"})
-			return
-		}
-		body.Foto = path
-	}
-
 	// Handling BidangID and getting BidangNama
 	bidangID := c.PostForm("bidang_id")
 	if bidangID == "" {
@@ -148,11 +132,11 @@ func CreateJaksa(c *gin.Context) {
 
 	// Add Jaksa to User collection
 	user := models.User{
-		ID:       body.ID,
-		Username: body.Username,
-		Email:    body.Email,
-		Password: body.Password,
-		Role:     "jaksa", 
+		ID:                      body.ID,
+		Username:                body.Username,
+		Email:                   body.Email,
+		Password:                body.Password,
+		Role:                    "jaksa",
 		EmailVerificationOTP:    emailVerificationOTP,
 		EmailVerificationExpiry: emailVerificationExpiry,
 	}
@@ -172,8 +156,8 @@ func CreateJaksa(c *gin.Context) {
 
 func sendVerificationEmail(to, otp string) error {
 	// Email pengirim dan App Password
-	from := "dewidesember20@gmail.com" 
-	pass := "pezf jucw gssc mmar"      
+	from := "dewidesember20@gmail.com"
+	pass := "pezf jucw gssc mmar"
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"
@@ -260,7 +244,7 @@ func UpdateJaksa(c *gin.Context) {
 			"nama":    body.Nama,
 			"nip":     body.NIP,
 			"foto":    body.Foto,
-			"user_id": body.UserID, 
+			"user_id": body.UserID,
 		},
 	}
 

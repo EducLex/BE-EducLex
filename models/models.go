@@ -110,6 +110,13 @@ type Jaksa struct {
 	EmailVerified           bool               `bson:"email_verified" json:"email_verified"`
 }
 
+type UpdateJaksaRequest struct {
+	Nama     string `json:"nama"`
+	NIP      string `json:"nip"`
+	Email    string `json:"email"`
+	BidangID string `json:"bidang_id"`
+}
+
 type Category struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name        string             `bson:"name" json:"name"`

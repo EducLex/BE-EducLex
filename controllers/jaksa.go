@@ -208,61 +208,131 @@ func GetAllJaksa(c *gin.Context) {
 	c.JSON(200, gin.H{"data": list})
 }
 
+type UpdateJaksaRequest struct {
+	Nama     string `json:"nama"`
+	NIP      string `json:"nip"`
+	Email    string `json:"email"`
+	BidangID string `json:"bidang_id"`
+}
+
 // Update Jaksa
 func UpdateJaksa(c *gin.Context) {
 	jaksaCollection := config.JaksaCollection
-	if jaksaCollection == nil {
-		c.JSON(500, gin.H{"error": "JaksaCollection masih nil"})
-		return
-	}
+	userCollection := config.UserCollection
 
 	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
+	jaksaID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "ID tidak valid"})
+		c.JSON(400, gin.H{"error": "ID Jaksa tidak valid"})
 		return
 	}
 
-	var body models.Jaksa
+	// Bind request
+	var body UpdateJaksaRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": "Data tidak valid"})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
-	}
-
-	// Ambil userId dari middleware autentikasi
-	userId, _ := c.Get("userId")
-	if userId == nil {
-		c.JSON(400, gin.H{"error": "User tidak terautentikasi"})
-		return
-	}
-
-	// Set userId ke dalam objek Jaksa
-	body.UserID = userId.(primitive.ObjectID)
-
-	update := bson.M{
-		"$set": bson.M{
-			"nama":    body.Nama,
-			"nip":     body.NIP,
-			"foto":    body.Foto,
-			"user_id": body.UserID,
-		},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := jaksaCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Gagal update jaksa"})
-		return
-	}
-
-	if result.MatchedCount == 0 {
+	// Ambil data jaksa lama
+	var jaksa models.Jaksa
+	if err := jaksaCollection.FindOne(ctx, bson.M{"_id": jaksaID}).Decode(&jaksa); err != nil {
 		c.JSON(404, gin.H{"error": "Jaksa tidak ditemukan"})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Data Jaksa berhasil diperbarui"})
+	updateJaksa := bson.M{}
+	updateUser := bson.M{}
+	emailDiubah := false
+
+	// Update nama
+	if body.Nama != "" {
+		updateJaksa["nama"] = body.Nama
+		updateUser["username"] = body.Nama // opsional, kalau username = nama
+	}
+
+	// Update NIP
+	if body.NIP != "" {
+		updateJaksa["nip"] = body.NIP
+	}
+
+	// Update Email
+	if body.Email != "" && body.Email != jaksa.Email {
+		emailDiubah = true
+		updateJaksa["email"] = body.Email
+		updateUser["email"] = body.Email
+	}
+
+	// Update Bidang
+	if body.BidangID != "" {
+		bidangObjID, err := primitive.ObjectIDFromHex(body.BidangID)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bidang ID tidak valid"})
+			return
+		}
+
+		var bidang models.Bidang
+		if err := config.BidangCollection.FindOne(ctx, bson.M{"_id": bidangObjID}).Decode(&bidang); err != nil {
+			c.JSON(404, gin.H{"error": "Bidang tidak ditemukan"})
+			return
+		}
+
+		updateJaksa["bidang_id"] = bidangObjID
+		updateJaksa["bidang_nama"] = bidang.Nama
+	}
+
+	// Kalau tidak ada data diupdate
+	if len(updateJaksa) == 0 {
+		c.JSON(400, gin.H{"error": "Tidak ada data yang diupdate"})
+		return
+	}
+
+	// 🔁 OTP ulang jika email berubah
+	if emailDiubah {
+		otp := generateOTP()
+		expiry := time.Now().Add(10 * time.Minute).Unix()
+
+		updateJaksa["email_verification_otp"] = otp
+		updateJaksa["email_verification_expiry"] = expiry
+		updateJaksa["email_verified"] = false
+
+		updateUser["email_verification_otp"] = otp
+		updateUser["email_verification_expiry"] = expiry
+		updateUser["email_verified"] = false
+
+		// Kirim email
+		go sendVerificationEmail(body.Email, otp)
+	}
+
+	// Update Jaksa
+	_, err = jaksaCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": jaksaID},
+		bson.M{"$set": updateJaksa},
+	)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal update data Jaksa"})
+		return
+	}
+
+	// Update User (berdasarkan email lama / jaksa_id)
+	_, err = userCollection.UpdateOne(
+		ctx,
+		bson.M{"email": jaksa.Email},
+		bson.M{"$set": updateUser},
+	)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal update data User"})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message":                     "Data Jaksa & User berhasil diperbarui",
+		"email_verification_required": emailDiubah,
+	})
 }
 
 // Delete Jaksa

@@ -131,64 +131,85 @@ func GetArticleByID(c *gin.Context) {
 
 // ✅ Update artikel (Admin)
 func UpdateArticle(c *gin.Context) {
+	// Ambil ID artikel
 	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
+	articleID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID artikel tidak valid"})
 		return
 	}
 
-	var input models.Article
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Ambil data form
+	judul := c.PostForm("judul")
+	isi := c.PostForm("isi")
+	categoryIDStr := c.PostForm("categoryId")
+	penulis := c.PostForm("penulis")
+
+	if judul == "" || isi == "" || categoryIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Judul, isi, dan category wajib diisi",
+		})
 		return
 	}
 
-	// Menangani file gambar jika ada
-	file, err := c.FormFile("gambar")
-	if err != nil && err.Error() != "multipart: no such file" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File gambar diperlukan"})
+	// Convert categoryId ke ObjectID
+	categoryID, err := primitive.ObjectIDFromHex(categoryIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID tidak valid"})
 		return
 	}
-	if file != nil {
-		// Simpan file gambar baru ke direktori uploads
-		path := "uploads/" + file.Filename
-		if err := c.SaveUploadedFile(file, path); err == nil {
-			input.Gambar = path
-		}
+
+	// Ambil category dari tabel category
+	var category models.Category
+	err = config.CategoryCollection.FindOne(
+		context.Background(),
+		bson.M{"_id": categoryID},
+	).Decode(&category)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category tidak ditemukan"})
+		return
 	}
 
-	// Menangani file dokumen jika ada
+	// Siapkan data update
+	updateData := bson.M{
+		"judul":         judul,
+		"isi":           isi,
+		"category_id":   categoryID,
+		"category_nama": category.Name,
+		"penulis":       penulis,
+		"updatedAt":     time.Now(),
+	}
+
+	// Handle dokumen (optional)
 	dokumen, err := c.FormFile("dokumen")
-	if err != nil && err.Error() != "multipart: no such file" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File dokumen diperlukan"})
-		return
-	}
-	if dokumen != nil {
-		// Simpan file dokumen baru ke direktori uploads
+	if err == nil {
 		path := "uploads/" + dokumen.Filename
 		if err := c.SaveUploadedFile(dokumen, path); err == nil {
-			input.Dokumen = path
+			updateData["dokumen"] = path
 		}
 	}
 
-	// Update artikel di MongoDB
-	update := bson.M{
-		"$set": bson.M{
-			"judul":     input.Judul,
-			"isi":       input.Isi,
-			"updatedAt": time.Now(),
-		},
-	}
+	// Update ke MongoDB
+	result, err := config.ArticleCollection.UpdateOne(
+		context.Background(),
+		bson.M{"_id": articleID},
+		bson.M{"$set": updateData},
+	)
 
-	// Update artikel di koleksi
-	_, err = config.ArticleCollection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui artikel"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update artikel"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Artikel berhasil diperbarui"})
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Artikel tidak ditemukan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Artikel berhasil diperbarui",
+	})
 }
 
 // ✅ Hapus artikel (Admin)

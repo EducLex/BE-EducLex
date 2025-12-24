@@ -91,7 +91,7 @@ func GetArticles(c *gin.Context) {
 
 		filter = bson.M{"categoryId": categoryID}
 	} else {
-		filter = bson.M{} // Ambil semua artikel jika tidak ada categoryId
+		filter = bson.M{} 
 	}
 
 	cursor, err := config.ArticleCollection.Find(context.Background(), filter)

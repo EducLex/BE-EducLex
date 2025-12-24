@@ -56,8 +56,9 @@ func SetupRouter() *gin.Engine {
 	r.GET("/:id/diskusi", controllers.GetDiskusiByQuestionID)
 
 	// Artikel Routes
-	r.GET("/articles", controllers.GetArticles)                                                               // Bisa diakses semua user
-	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle) // Hanya admin
+	r.GET("/articles", controllers.GetArticles)
+	r.Static("/uploads", "./uploads")
+	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle)
 	r.PUT("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateArticle)
 	r.DELETE("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteArticle)
 
